@@ -9,7 +9,7 @@ testSpecialDatasets <- function(qData.original, qData.mixed){
   original.order <- colnames(qData.original)
   qData.mixed.reordered <- qData.mixed[,original.order]
   
-  expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
+  testthat::expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
 }
 
 
