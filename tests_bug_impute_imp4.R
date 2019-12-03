@@ -2,6 +2,17 @@ library(DAPAR)
 library(DAPARdata)
 library(imp4p)
 
+#### Function to test the egality between the original (ordered) dataset and
+#### the mixed one which has been imputed
+testSpecialDatasets <- function(qData.original, qData.mixed){
+  
+  original.order <- colnames(qData.original)
+  qData.mixed.reordered <- qData.mixed[,original.order]
+  
+  expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
+}
+
+
 
 #### data loading ####
 data("Exp1_R25_prot")
@@ -52,12 +63,12 @@ res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions,
                 x.step.mod = 300, 
                 x.step.pi = 300, nb.rei = 100)
 # Error in optim(init, fr, gr = NULL, x = (abs[, j] - xmin), pi_est = pi_init,  : 
-# L-BFGS-B nécessite des valeurs finies de 'fn'
+# L-BFGS-B nÃ©cessite des valeurs finies de 'fn'
 
 
 res.mi <- impute.mi(qData, conditions=conds, nknn=15, selec="all", weight=1, ind.comp=1)
 # Error in optim(init, fr, gr = NULL, x = (abs[, j] - xmin), pi_est = pi_init,  : 
-# L-BFGS-B nécessite des valeurs finies de 'fn'
+# L-BFGS-B nÃ©cessite des valeurs finies de 'fn'
 
 boxplot(qData)
 boxplot(res.mi)
