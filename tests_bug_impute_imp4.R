@@ -2,6 +2,21 @@ library(DAPAR)
 library(DAPARdata)
 library(imp4p)
 
+<<<<<<< HEAD
+=======
+#### Function to test the egality between the original (ordered) dataset and
+#### the mixed one which has been imputed
+testSpecialDatasets <- function(qData.original, qData.mixed){
+  
+  original.order <- colnames(qData.original)
+  qData.mixed.reordered <- qData.mixed[,original.order]
+  
+  testthat::expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
+}
+
+
+
+>>>>>>> 7325c9a3d7173de3f73f7c81bf814e5f9a711193
 #### data loading ####
 
 
@@ -51,6 +66,7 @@ res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions,
                 x.step.mod = 300, 
                 x.step.pi = 300, nb.rei = 100)
 # Error in optim(init, fr, gr = NULL, x = (abs[, j] - xmin), pi_est = pi_init,  : 
+<<<<<<< HEAD
 # L-BFGS-B nécessite des valeurs finies de 'fn'
 born = estim.bound(tab = tab, conditions = conditions, q = 0.95)
 proba = prob.mcar.tab(born$tab.upper, res)
@@ -68,3 +84,14 @@ colnames(res.df$mi) <- paste("impute.mi.protein",colnames(res.df$mi), sep = "_")
 # res.mi <- impute.mi(qData, conditions=conds, nknn=15, selec="all", weight=1, ind.comp=1)
 # Error in optim(init, fr, gr = NULL, x = (abs[, j] - xmin), pi_est = pi_init,  : 
 # L-BFGS-B nécessite des valeurs finies de 'fn'
+=======
+# L-BFGS-B nÃ©cessite des valeurs finies de 'fn'
+
+
+res.mi <- impute.mi(qData, conditions=conds, nknn=15, selec="all", weight=1, ind.comp=1)
+# Error in optim(init, fr, gr = NULL, x = (abs[, j] - xmin), pi_est = pi_init,  : 
+# L-BFGS-B nÃ©cessite des valeurs finies de 'fn'
+
+boxplot(qData)
+boxplot(res.mi)
+>>>>>>> 7325c9a3d7173de3f73f7c81bf814e5f9a711193
