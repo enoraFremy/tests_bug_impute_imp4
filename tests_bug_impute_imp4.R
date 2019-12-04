@@ -166,14 +166,16 @@ pData$Condition <- c(rep("A",nbCond), rep("B", nbCond), rep("C", nbCond))
 pData$Sample.name <- paste0(pData$Condition, 1:nbCond)
 rownames(pData) <- pData$Sample.name
 
-#qData.NA <- is.na(qData) # keep NA for imputation
+qData.NA <- is.na(qData) # keep NA for imputation
 
-#qData[,1:3] <- apply(qData[,1:3], 2, function(x) rnorm(x, mean = 1, sd = 1))
-#qData[,4:6] <- apply(qData[,4:6], 2, function(x) rnorm(x, mean = 500, sd = 1))
-#qData[,7:9] <- apply(qData[,7:9], 2, function(x) rnorm(x, mean = 1000, sd = 1))
-
-#qData[qData.NA] <- NA
-#rm(qData.NA)
+# qData[,1:3] <- apply(qData[,1:3], 2, function(x) rnorm(x, mean = 10, sd = 1))
+# qData[,4:6] <- apply(qData[,4:6], 2, function(x) rnorm(x, mean = 50, sd = 1))
+# qData[,7:9] <- apply(qData[,7:9], 2, function(x) rnorm(x, mean = 100, sd = 1))
+qData[,1:3] <- apply(qData[,1:3], 2, function(x) sample(1:20, nrow(qData), replace = T))
+qData[,4:6] <- apply(qData[,4:6], 2, function(x) sample(49:51, nrow(qData), replace = T))
+qData[,7:9] <- apply(qData[,7:9], 2, function(x) sample(91:110, nrow(qData), replace = T))
+qData[qData.NA] <- NA
+rm(qData.NA)
 
 qData.original <- qData
 pData.original <- pData
