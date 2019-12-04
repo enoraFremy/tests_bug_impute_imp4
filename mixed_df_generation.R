@@ -137,10 +137,12 @@ df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, inte
     colnames(qData.plus) <- pData$Sample.name
     qData.plus[,1:ncol(qData)] <- qData
     
-    for (i in (ncol(qData)+1):ncol(qData.plus)) {
-      random_col_qData <- sample(ncol(qData),1)
-      print(paste0("Column qData random: ", random_col_qData))
-      qData.plus[,i] <- qData[,random_col_qData]
+    if ((ncol(qData)+1)<ncol(qData.plus)) {
+      for (i in (ncol(qData)+1):ncol(qData.plus)) {
+        random_col_qData <- sample(ncol(qData),1)
+        print(paste0("Column qData random: ", random_col_qData))
+        qData.plus[,i] <- qData[,random_col_qData]
+      }
     }
     
     colnames(qData.plus) <- pData$Sample.name
@@ -220,7 +222,7 @@ df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, inte
 
 #------------------------------------------------------------
 data("Exp1_R25_pept")
-# nCond = 3
+# nCond = 2
 # nRep = 3
 # interC = 0
 # intraC = 1
@@ -229,7 +231,7 @@ qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
 pData <- Biobase::pData(Exp1_R25_pept)
 
 #------------------------------------------------------------
-res <- df_generation(qData, pData, nCond = 3, nRep = 3, mismatch.nRep = FALSE, interC = 1, intraC = 1, fullRandom = 0)
+res <- df_generation(qData, pData, nCond = 4, nRep = 3, mismatch.nRep = FALSE, interC = 1, intraC = 1, fullRandom = 0)
 #View(res$pData)
 
 #------------------------------------------------------------
