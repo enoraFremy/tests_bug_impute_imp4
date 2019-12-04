@@ -30,6 +30,84 @@ CreateMinimalistMSnset <- function(qData,pData){
   return(obj)
 }
 
+testSpecialDatasets <- function(qData.original, qData.mixed){
+  
+  original.order <- colnames(qData.original)
+  qData.mixed.reordered <- qData.mixed[,original.order]
+  
+  testthat::expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
+}
+
+impute.mi.test <- function(qData, pData, nb.iter = 3, 
+                           nknn = 15, selec = 600, siz = 500, weight = 1, ind.comp = 1, 
+                           progress.bar = TRUE, x.step.mod = 300, 
+                           x.step.pi = 300, nb.rei = 100, method = 4, gridsize = 300, 
+                           q = 0.95, q.min = 0, q.norm = 3, eps = 0, methodi = "slsa",
+                           lapala = TRUE,
+                           distribution="unif"){
+  
+  ## order exp and pData table before using imp4p functions
+  conds <- factor(pData$Condition, levels=unique(pData$Condition))
+  sample.names.old <- pData$Sample.name
+  sTab <- pData
+  new.order <- unlist(lapply(split(sTab, conds), function(x) {x['Sample.name']}))
+  qData <- qData[,new.order]
+  sTab <- pData[new.order,]
+  
+  
+  
+  conditions <- as.factor(sTab$Condition)
+  repbio <- as.factor(sTab$Bio.Rep)
+  reptech <-as.factor(sTab$Tech.Rep)
+  
+  tab <- qData
+  
+  if (progress.bar == TRUE) {
+    cat(paste("\n 1/ Initial imputation under the MCAR assumption with impute.rand ... \n  "))
+  }
+  dat.slsa = imp4p::impute.rand(tab = tab, conditions = conditions)
+  
+  if (progress.bar == TRUE) {
+    cat(paste("\n 2/ Estimation of the mixture model in each sample... \n  "))
+  }
+  res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions, 
+                  x.step.mod = x.step.mod, 
+                  x.step.pi = x.step.pi, nb.rei = nb.rei)
+  
+  
+  if (progress.bar == TRUE) {
+    cat(paste("\n 3/ Estimation of the probabilities each missing value is MCAR... \n  "))
+  }
+  born = estim.bound(tab = tab, conditions = conditions, q = q)
+  proba = prob.mcar.tab(born$tab.upper, res)
+  
+  
+  if (progress.bar == TRUE) {
+    cat(paste("\n 4/ Multiple imputation strategy with mi.mix ... \n  "))
+  }
+  data.mi = mi.mix(tab = tab, tab.imp = dat.slsa, prob.MCAR = proba, 
+                   conditions = conditions, repbio = repbio, reptech = reptech, 
+                   nb.iter = nb.iter, nknn = nknn, weight = weight, selec = selec, 
+                   siz = siz, ind.comp = ind.comp, methodi = methodi, q = q, 
+                   progress.bar = progress.bar)
+  
+  if (lapala == TRUE){
+    if (progress.bar == TRUE) {
+      cat(paste("\n\n 5/ Imputation of rows with only missing values in a condition with impute.pa ... \n  "))
+    }
+    data.final = impute.pa2(tab = data.mi, conditions = conditions, 
+                            q.min = q.min, q.norm = q.norm, eps = eps, distribution = distribution)
+  } else {
+    data.final <- data.mi
+  }
+  
+  
+  # restore previous order
+  colnames(data.final) <- new.order
+  data.final <- data.final[,sample.names.old]
+  
+  return(data.final)
+}
 
 
 df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC = 0, intraC = 0, fullRandom = 0) { 
@@ -68,6 +146,7 @@ df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, inte
     colnames(qData.plus) <- pData$Sample.name
     qData <- as.data.frame(qData.plus)
     
+    res <- list(pData=pData, qData.original=qData)
     
     #### Mix columns qData ####
     
@@ -133,10 +212,11 @@ df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, inte
     
   }
   
-  res <- list(pData=pData,qData=qData)
+  res$qData.mixed <- qData
   return(res)
   
 }
+
 
 #------------------------------------------------------------
 data("Exp1_R25_pept")
@@ -145,11 +225,23 @@ data("Exp1_R25_pept")
 # interC = 0
 # intraC = 1
 # fullRandom = 0
-qData <- Biobase::exprs(Exp1_R25_pept)
+qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
 pData <- Biobase::pData(Exp1_R25_pept)
 
 #------------------------------------------------------------
-res <- df_generation(qData, pData, nCond = 3, nRep = 3, mismatch.nRep = FALSE, interC = 0, intraC = 1, fullRandom = 0)
+res <- df_generation(qData, pData, nCond = 3, nRep = 3, mismatch.nRep = FALSE, interC = 1, intraC = 1, fullRandom = 0)
 #View(res$pData)
-View(res$qData)
-new_MSnset <- CreateMinimalistMSnset(qData, pData) # pour les tests (d'imputation imp4p)
+
+#------------------------------------------------------------
+# Test imputation imp4p
+#------------------------------------------------------------
+
+qData.original <- impute.mi.test(res$qData.original, res$pData)
+qData.mixed <- impute.mi.test(res$qData.mixed, res$pData)
+
+head(res$qData.original)
+head(res$qData.mixed)
+head(qData.original)
+head(qData.mixed)
+
+testSpecialDatasets(qData.original, qData.mixed)
