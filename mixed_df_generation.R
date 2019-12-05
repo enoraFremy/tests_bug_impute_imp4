@@ -3,19 +3,15 @@ library(DAPARdata)
 library(imp4p)
 library(testthat)
 
-<<<<<<< HEAD
 # "wrapper.impute.mle" fonctionne pas, NA pas remplaces
 
-## Noms et parametres des fonctions d'imputation � tester
-=======
-## Noms et parametres des fonctions d'imputation à tester
->>>>>>> ace2d2e80d8a4f9c269b425102c98d481f7c4e2a
+## Noms et parametres des fonctions d'imputation a tester
 ## utilises par do.call
 GetListFuncs <- function(obj=NULL){
   
   ll <- NULL
   if (is.null(obj)) {
-    ##liste des fonctions à tester
+    ##liste des fonctions Ã  tester
     ll <- c("wrapper.dapar.impute.mi",
             "wrapper.impute.slsa",
             "wrapper.impute.detQuant",
@@ -41,7 +37,7 @@ GetListFuncs <- function(obj=NULL){
 ##Teste les fonctions d'imputation sur 2 datasets
 test_impute_functions <- function(obj.original, obj.mixed){
   FUN <- GetListFuncs() # Liste des fonctions a tester
-  # Pour chaque fonction d'imputation à tester
+  # Pour chaque fonction d'imputation Ã  tester
   for (i in 1:length(FUN)){
     #i=1
     print(paste0("test de la fonction : ",FUN[i]))
@@ -254,7 +250,6 @@ nRep = 2
 # intraC = 0
 # fullRandom = 1
 
-<<<<<<< HEAD
 for (i in 1:5) {
   nCond = sample(c(2:5),1)
   #nRep = sample(c(2:4),1)
@@ -265,7 +260,6 @@ for (i in 1:5) {
   test_imputation(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom)
   
 }
-=======
 #------------------------------------------------------------
 # impute.mi.test <- function(qData, pData, nb.iter = 3, 
 #                            nknn = 15, selec = 600, siz = 500, weight = 1, ind.comp = 1, 
@@ -342,4 +336,3 @@ for (i in 1:5) {
 # head(qData.original)
 # head(qData.mixed)
 # testSpecialDatasets(qData.original, qData.mixed)
->>>>>>> ace2d2e80d8a4f9c269b425102c98d481f7c4e2a
