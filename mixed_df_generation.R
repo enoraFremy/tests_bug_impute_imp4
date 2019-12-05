@@ -11,7 +11,7 @@ GetListFuncs <- function(obj=NULL){
   
   ll <- NULL
   if (is.null(obj)) {
-    ##liste des fonctions Ã  tester
+    ##liste des fonctions a tester
     ll <- c("wrapper.dapar.impute.mi",
             "wrapper.impute.slsa",
             "wrapper.impute.detQuant",
@@ -37,7 +37,7 @@ GetListFuncs <- function(obj=NULL){
 ##Teste les fonctions d'imputation sur 2 datasets
 test_impute_functions <- function(obj.original, obj.mixed){
   FUN <- GetListFuncs() # Liste des fonctions a tester
-  # Pour chaque fonction d'imputation Ã  tester
+  # Pour chaque fonction d'imputation ÃÂ  tester
   for (i in 1:length(FUN)){
     #i=1
     print(paste0("test de la fonction : ",FUN[i]))
@@ -335,4 +335,5 @@ for (i in 1:5) {
 # qData.mixed <- impute.mi.test(res$qData.mixed, res$pData)
 # head(qData.original)
 # head(qData.mixed)
+# testSpecialDatasets(qData.original, qData.mixed)
 # testSpecialDatasets(qData.original, qData.mixed)
