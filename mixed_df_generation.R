@@ -11,21 +11,22 @@ GetListFuncs <- function(obj=NULL){
   if (is.null(obj)) {
     ##liste des fonctions à tester
     ll <- c("wrapper.dapar.impute.mi",
-            "wrapper.impute.mle",
             "wrapper.impute.slsa",
             "wrapper.impute.detQuant",
             "wrapper.impute.pa",
             "wrapper.impute.fixedValue",
-            "wrapper.impute.KNN"
+            "wrapper.impute.KNN",
+            "wrapper.impute.mle"
     ) }
   else {
     ll <- list(list(obj,nb.iter = 1),
-               list(obj),
+               
                list(obj),
                list(obj,qval=0.025, factor=1),
                list(obj,q.min = 0.025),
                list(obj,fixVal=0),
-               list(obj,K=10)
+               list(obj,K=10),
+               list(obj)
     )
   }
   return(ll)
@@ -33,12 +34,13 @@ GetListFuncs <- function(obj=NULL){
 
 ##Teste les fonctions d'imputation sur 2 datasets
 test_impute_functions <- function(obj.original, obj.mixed){
-  FUN <- GetListFuncs()
+  FUN <- GetListFuncs() # Liste des fonctions a tester
   # Pour chaque fonction d'imputation à tester
   for (i in 1:length(FUN)){
+    #i=1
     print(paste0("test de la fonction : ",FUN[i]))
     #recupere les fonctions a tester et leurs parametres
-    ll_params_original <- GetListFuncs(obj.original)
+    ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
     ll_params_mixed <- GetListFuncs(obj.mixed)
     
     # execution de la fonction d'imputation a tester
@@ -48,11 +50,20 @@ test_impute_functions <- function(obj.original, obj.mixed){
     # tri des colonnes du dataset melange suivant l'ordre des 
     # colonnes du dataset original
     original.order <- colnames(exprs(obj.original.imputed))
-    exprs(obj.original.mixed) <- exprs(obj.original.mixed)[,original.order]
+    qData.original.mixed <- exprs(obj.original.mixed)
+    qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
+    # exprs(obj.original.mixed) ne se modifie pas
     
+    head(exprs(obj.original))
+    head(exprs(obj.mixed))
+    head(exprs(obj.original.imputed))
+    #head(exprs(obj.original.mixed))
+    head(qData.original.mixed)
     
     # test de comparaison
-    expect_equal(exprs(obj.original.imputed), exprs(obj.original.mixed),tolerance=1)
+    dimnames((exprs(obj.original.mixed)))
+    expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+    
   }
 }
 
@@ -83,13 +94,13 @@ CreateMinimalistMSnset <- function(qData,pData){
   return(obj)
 }
 
-testSpecialDatasets <- function(qData.original, qData.mixed){
-  
-  original.order <- colnames(qData.original)
-  qData.mixed.reordered <- qData.mixed[,original.order]
-  
-  testthat::expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
-}
+# testSpecialDatasets <- function(qData.original, qData.mixed){
+#   
+#   original.order <- colnames(qData.original)
+#   qData.mixed.reordered <- qData.mixed[,original.order]
+#   
+#   testthat::expect_equal(qData.mixed.reordered, qData.original,tolerance=1)
+# }
 
 df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC = 0, intraC = 0, fullRandom = 0) { 
   
@@ -209,7 +220,7 @@ qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
 pData <- Biobase::pData(Exp1_R25_pept)
 
 #------------------------------------------------------------
-res <- df_generation(qData, pData, nCond = 3, nRep = 3, mismatch.nRep = FALSE, interC = 1, intraC = 0, fullRandom = 0)
+res <- df_generation(qData, pData, nCond = 3, nRep = 3, mismatch.nRep = FALSE, interC = 0, intraC = 0, fullRandom = 1)
 #View(res$pData)
 
 #------------------------------------------------------------
