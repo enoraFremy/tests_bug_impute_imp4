@@ -3,15 +3,19 @@ library(DAPARdata)
 library(imp4p)
 library(testthat)
 
+<<<<<<< HEAD
 # "wrapper.impute.mle" fonctionne pas, NA pas remplaces
 
 ## Noms et parametres des fonctions d'imputation à tester
+=======
+## Noms et parametres des fonctions d'imputation Ã  tester
+>>>>>>> ace2d2e80d8a4f9c269b425102c98d481f7c4e2a
 ## utilises par do.call
 GetListFuncs <- function(obj=NULL){
   
   ll <- NULL
   if (is.null(obj)) {
-    ##liste des fonctions à tester
+    ##liste des fonctions Ã  tester
     ll <- c("wrapper.dapar.impute.mi",
             "wrapper.impute.slsa",
             "wrapper.impute.detQuant",
@@ -37,7 +41,7 @@ GetListFuncs <- function(obj=NULL){
 ##Teste les fonctions d'imputation sur 2 datasets
 test_impute_functions <- function(obj.original, obj.mixed){
   FUN <- GetListFuncs() # Liste des fonctions a tester
-  # Pour chaque fonction d'imputation à tester
+  # Pour chaque fonction d'imputation Ã  tester
   for (i in 1:length(FUN)){
     #i=1
     print(paste0("test de la fonction : ",FUN[i]))
@@ -250,6 +254,7 @@ nRep = 2
 # intraC = 0
 # fullRandom = 1
 
+<<<<<<< HEAD
 for (i in 1:5) {
   nCond = sample(c(2:5),1)
   #nRep = sample(c(2:4),1)
@@ -260,3 +265,81 @@ for (i in 1:5) {
   test_imputation(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom)
   
 }
+=======
+#------------------------------------------------------------
+# impute.mi.test <- function(qData, pData, nb.iter = 3, 
+#                            nknn = 15, selec = 600, siz = 500, weight = 1, ind.comp = 1, 
+#                            progress.bar = TRUE, x.step.mod = 300, 
+#                            x.step.pi = 300, nb.rei = 100, method = 4, gridsize = 300, 
+#                            q = 0.95, q.min = 0, q.norm = 3, eps = 0, methodi = "slsa",
+#                            lapala = TRUE,
+#                            distribution="unif"){
+#   
+#   ## order exp and pData table before using imp4p functions
+#   conds <- factor(pData$Condition, levels=unique(pData$Condition))
+#   sample.names.old <- pData$Sample.name
+#   sTab <- pData
+#   new.order <- unlist(lapply(split(sTab, conds), function(x) {x['Sample.name']}))
+#   qData <- qData[,new.order]
+#   sTab <- pData[new.order,]
+#   
+#   
+#   
+#   conditions <- as.factor(sTab$Condition)
+#   repbio <- as.factor(sTab$Bio.Rep)
+#   reptech <-as.factor(sTab$Tech.Rep)
+#   
+#   tab <- qData
+#   
+#   if (progress.bar == TRUE) {
+#     cat(paste("\n 1/ Initial imputation under the MCAR assumption with impute.rand ... \n  "))
+#   }
+#   dat.slsa = imp4p::impute.rand(tab = tab, conditions = conditions)
+#   
+#   if (progress.bar == TRUE) {
+#     cat(paste("\n 2/ Estimation of the mixture model in each sample... \n  "))
+#   }
+#   res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions, 
+#                   x.step.mod = x.step.mod, 
+#                   x.step.pi = x.step.pi, nb.rei = nb.rei)
+#   
+#   
+#   if (progress.bar == TRUE) {
+#     cat(paste("\n 3/ Estimation of the probabilities each missing value is MCAR... \n  "))
+#   }
+#   born = estim.bound(tab = tab, conditions = conditions, q = q)
+#   proba = prob.mcar.tab(born$tab.upper, res)
+#   
+#   
+#   if (progress.bar == TRUE) {
+#     cat(paste("\n 4/ Multiple imputation strategy with mi.mix ... \n  "))
+#   }
+#   data.mi = mi.mix(tab = tab, tab.imp = dat.slsa, prob.MCAR = proba, 
+#                    conditions = conditions, repbio = repbio, reptech = reptech, 
+#                    nb.iter = nb.iter, nknn = nknn, weight = weight, selec = selec, 
+#                    siz = siz, ind.comp = ind.comp, methodi = methodi, q = q, 
+#                    progress.bar = progress.bar)
+#   
+#   if (lapala == TRUE){
+#     if (progress.bar == TRUE) {
+#       cat(paste("\n\n 5/ Imputation of rows with only missing values in a condition with impute.pa ... \n  "))
+#     }
+#     data.final = impute.pa2(tab = data.mi, conditions = conditions, 
+#                             q.min = q.min, q.norm = q.norm, eps = eps, distribution = distribution)
+#   } else {
+#     data.final <- data.mi
+#   }
+#   
+#   
+#   # restore previous order
+#   colnames(data.final) <- new.order
+#   data.final <- data.final[,sample.names.old]
+#   
+#   return(data.final)
+# }
+# qData.original <- impute.mi.test(res$qData.original, res$pData)
+# qData.mixed <- impute.mi.test(res$qData.mixed, res$pData)
+# head(qData.original)
+# head(qData.mixed)
+# testSpecialDatasets(qData.original, qData.mixed)
+>>>>>>> ace2d2e80d8a4f9c269b425102c98d481f7c4e2a
