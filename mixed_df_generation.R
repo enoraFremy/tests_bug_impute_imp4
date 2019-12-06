@@ -22,7 +22,6 @@ GetListFuncs <- function(obj=NULL){
     ) }
   else {
     ll <- list(list(obj,nb.iter = 1),
-               
                list(obj),
                list(obj,qval=0.025, factor=1),
                list(obj,q.min = 0.025),
@@ -47,25 +46,34 @@ test_impute_functions <- function(obj.original, obj.mixed){
     ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
     ll_params_mixed <- GetListFuncs(obj.mixed)
     
-    # execution de la fonction d'imputation a tester
-    obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
-    obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
+    tryCatch(
+      {# execution de la fonction d'imputation a tester
+      obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
+      obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
     
-    # tri des colonnes du dataset melange suivant l'ordre des 
-    # colonnes du dataset original
-    original.order <- colnames(exprs(obj.original.imputed))
-    qData.original.mixed <- exprs(obj.original.mixed)
-    qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
-    # exprs(obj.original.mixed) ne se modifie pas
+      # tri des colonnes du dataset melange suivant l'ordre des 
+      # colonnes du dataset original
+      original.order <- colnames(exprs(obj.original.imputed))
+      qData.original.mixed <- exprs(obj.original.mixed)
+      qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
+      # exprs(obj.original.mixed) ne se modifie pas
     
-    head(exprs(obj.original))
-    head(exprs(obj.mixed))
-    head(exprs(obj.original.imputed))
-    #head(exprs(obj.original.mixed))
-    head(qData.original.mixed)
+      # head(exprs(obj.original))
+      # head(exprs(obj.mixed))
+      # head(exprs(obj.original.imputed))
+      # #head(exprs(obj.original.mixed))
+      # head(qData.original.mixed)
     
-    # test de comparaison
-    expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+      # test de comparaison
+      expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+      }
+      , warning = function(w) {
+        message(w)
+      }, error = function(e) {
+        message(e)
+      }, finally = {
+        #cleanup-code 
+      })
     
   }
 }
@@ -285,6 +293,7 @@ df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2,
   # TODO
   
   #introduction des MEC
+  qData <- IntroduceMEC(qData, nbMEC)
   # nb.MEC <- floor(nb.MV * prop.MEC)
   # indices.MEC <- sample(nbCond*size, nb.MEC)
   # for (i in 1:length(indices.MEC)){
@@ -296,6 +305,7 @@ df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2,
   
   
   #introduction des POV
+  qData <- IntroducePOV(qData, nbPOV)
   # nb.POV <- floor(nb.MV * (1-prop.MEC))
   # ensDeTest <- setdiff(nbCond*size, indices.MEC)
   # for (i in 1:length(ensDeTest)){
@@ -384,12 +394,25 @@ data("Exp1_R25_pept")
 qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
 pData <- Biobase::pData(Exp1_R25_pept)
 
-test_imputation <- function(nbCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom) {
+test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTest = 5) {
   
-  cat("\n *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
+  for (i in 1:nTest) {
+    nCond = sample(c(2:5),1)
+    #nRep = sample(c(2:4),1)
+    interC = sample(c(0,1),1)
+    intraC = sample(c(0,1),1)
+    fullRandom = sample(c(0,1),1)
+    
+    print("Caracteristiques du dataset :")
+    print(paste0("nbCond = ", nCond))
+    print(paste0("interC = ", interC))
+    print(paste0("intraC = ", intraC))
+    print(paste0("fullRandom = ", fullRandom))
+    
+    cat("\n *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
   
   # 1 - generation qData et pData
-  res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, size = 100)
+  res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, size = size)
   
   # 2 - etape de melange
   res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
@@ -402,7 +425,7 @@ test_imputation <- function(nbCond, nRep, mismatch.nRep = FALSE, interC, intraC,
   
   # 4 -test en serie des fonctions d'imputation
   test_impute_functions(obj.original, obj.mixed)
-  
+  }
   
 }
 
@@ -419,6 +442,13 @@ for (i in 1:5) {
   intraC = sample(c(0,1),1)
   fullRandom = sample(c(0,1),1)
   
+  print("Caracteristiques du dataset :")
+  print(paste0("nbCond = ", nCond))
+  print(paste0("interC = ", interC))
+  print(paste0("intraC = ", intraC))
+  print(paste0("fullRandom = ", fullRandom))
+        
+        
   test_imputation(nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom)
   
 }
