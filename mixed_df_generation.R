@@ -3,7 +3,7 @@ library(DAPARdata)
 library(imp4p)
 library(testthat)
 
-# "wrapper.impute.mle" fonctionne pas, NA pas remplaces
+
 
 ## Noms et parametres des fonctions d'imputation a tester
 ## utilises par do.call
@@ -22,7 +22,6 @@ GetListFuncs <- function(obj=NULL){
     ) }
   else {
     ll <- list(list(obj,nb.iter = 1),
-               
                list(obj),
                list(obj,qval=0.025, factor=1),
                list(obj,q.min = 0.025),
@@ -34,10 +33,12 @@ GetListFuncs <- function(obj=NULL){
   return(ll)
 }
 
+
+##--------------------------------------------------------------------
 ##Teste les fonctions d'imputation sur 2 datasets
 test_impute_functions <- function(obj.original, obj.mixed){
   FUN <- GetListFuncs() # Liste des fonctions a tester
-  # Pour chaque fonction d'imputation Ã  tester
+  # Pour chaque fonction d'imputation a tester
   for (i in 1:length(FUN)){
     #i=1
     print(paste0("test de la fonction : ",FUN[i]))
@@ -45,30 +46,180 @@ test_impute_functions <- function(obj.original, obj.mixed){
     ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
     ll_params_mixed <- GetListFuncs(obj.mixed)
     
-    # execution de la fonction d'imputation a tester
-    obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
-    obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
-    
-    # tri des colonnes du dataset melange suivant l'ordre des 
-    # colonnes du dataset original
-    original.order <- colnames(exprs(obj.original.imputed))
-    qData.original.mixed <- exprs(obj.original.mixed)
-    qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
-    # exprs(obj.original.mixed) ne se modifie pas
-    
-    head(exprs(obj.original))
-    head(exprs(obj.mixed))
-    head(exprs(obj.original.imputed))
-    #head(exprs(obj.original.mixed))
-    head(qData.original.mixed)
-    
-    # test de comparaison
-    expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+    tryCatch(
+      {# execution de la fonction d'imputation a tester
+        obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
+        obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
+        
+        # tri des colonnes du dataset melange suivant l'ordre des 
+        # colonnes du dataset original
+        original.order <- colnames(exprs(obj.original.imputed))
+        qData.original.mixed <- exprs(obj.original.mixed)
+        qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
+        # exprs(obj.original.mixed) ne se modifie pas
+        
+        # head(exprs(obj.original))
+        # head(exprs(obj.mixed))
+        # head(exprs(obj.original.imputed))
+        # #head(exprs(obj.original.mixed))
+        # head(qData.original.mixed)
+        
+        # test de comparaison
+        expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+      },
+      warning = function(w) {message(w)},
+      error = function(e) {message(e)},
+      finally = {}
+    )
     
   }
 }
 
-CreateMinimalistMSnset <- function(qData,pData){
+
+
+
+##########################################################
+##
+mix_dataset_Sam <- function(ll=NULL){
+  
+  if(is.null(ll)){warning('The list in empty')
+    return(NULL)}
+  
+  qData <- ll$qData
+  pData <- ll$pData
+  
+  #### Mix columns qData ####
+  random_col_indices <- NULL
+  if (fullRandom == FALSE) {
+    
+    if (interC == TRUE && intraC == FALSE) { 
+      
+      print("conditions shuffled, replicates unchanged")
+      # aller par multiples de nRep
+      interC.list <- list()
+      ll <- lapply(unique(conditions), function(x) which(conditions==x))
+      ll <- ll[sample(nbCond,nbCond)]
+    }
+    
+    if (interC == FALSE && intraC == TRUE) { 
+      
+      print("conditions unchanged, replicates shuffled")
+      ll <- lapply(unique(conditions), function(x) which(conditions==x))
+      ll <- lapply(ll, function(x) sample(x,length(x)))
+    }
+    
+    if (interC == TRUE && intraC == TRUE) { 
+      
+      print("conditions and replicates shuffled")
+      ll <- lapply(unique(conditions), function(x) which(conditions==x))
+      ll <- lapply(ll, function(x) sample(x,length(x)))
+      ll <- ll[sample(nbCond,nbCond)]
+    }
+    
+  }
+  
+  else {
+    
+    print("full random")
+    random_col_indices <- sample(ncol(qData),ncol(qData))
+    #print(paste0("random_col_indices: ",list(random_col_indices)))
+  }
+  qData <- qData[,random_col_indices]
+  pData <- pData[random_col_indices,]
+  
+  res <- list(pData=pData,qData=qData)
+  return(res)
+}
+
+
+
+
+
+mix_dataset_Enora <- function(ll, nCond, nRep, mismatch.nRep = FALSE, 
+                              interC = FALSE, intraC = FALSE, fullRandom = FALSE){
+  
+  qData <- ll$qData
+  pData <- ll$pData
+  
+  #### Mix columns qData ####
+  
+  if (fullRandom == 0) {
+    
+    if (interC == 1 && intraC == 0) { 
+      
+      print("conditions shuffled, replicates unchanged")
+      interC.list <- c(1:ncol(qData))
+      interC.list <- split(interC.list, sort(interC.list%%nCond))
+      new.interC.list <- unlist(sample(interC.list,nCond), use.names = F)
+      qData <- qData[,new.interC.list]
+      pData <- pData[new.interC.list,]
+    }
+    
+    if (interC == 0 && intraC == 1) { 
+      
+      print("conditions unchanged, replicates shuffled")
+      intraC.list <- c(1:ncol(qData))
+      intraC.list <- split(intraC.list, sort(intraC.list%%nCond))
+      
+      new.order <- vector()
+      
+      for (i in (1:nCond) ) {
+        #print(i)
+        #i=1
+        new.order <- c(new.order,sample(intraC.list[[i]]))
+        
+        
+      }
+      qData <- qData[,new.order]
+      pData <- pData[new.order,]
+    }
+    
+    if (interC == 1 && intraC == 1) { 
+      
+      print("conditions and replicates shuffled")
+      er.ac <- c(1:ncol(qData))
+      er.ac <- split(er.ac, sort(er.ac%%nCond))
+      new.order <- vector()
+      
+      for (i in (1:nCond) ) {
+        #print(i)
+        #i=1
+        new.order <- c(new.order,sample(er.ac[[i]]))
+        
+      }
+      qData <- qData[,new.order]
+      pData <- pData[new.order,]
+      new.interC.list <- unlist(sample(er.ac,nCond), use.names = F)
+      qData <- qData[,new.interC.list]
+      pData <- pData[new.interC.list,]
+      
+    }
+    
+  }
+  
+  else {
+    
+    print("full random")
+    random_col_indices <- sample(ncol(qData),ncol(qData))
+    #print(paste0("random_col_indices: ",list(random_col_indices)))
+    qData <- qData[,random_col_indices]
+    pData <- pData[random_col_indices,]
+  }
+  
+  
+  #res$qData.mixed <- qData
+  return(list(qData=qData, pData=pData))
+}
+
+
+
+
+
+
+
+CreateMinimalistMSnset <- function(ll){
+  qData <- ll$qData
+  pData <- ll$pData
   Intensity <- matrix(as.numeric(gsub(",", ".",as.matrix(qData )))
                       , ncol=ncol(qData)
                       , byrow=FALSE)
@@ -95,7 +246,83 @@ CreateMinimalistMSnset <- function(qData,pData){
   return(obj)
 }
 
-df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC = 0, intraC = 0, fullRandom = 0) { 
+
+#-------------------------------------------------------------------
+df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2, size = 100){
+  qData <- pData <- NULL
+  
+  
+  #creation dataset sans missing values
+  base <- LETTERS[1:nbCond]
+  FC.factor = 100
+  if (!mismatch.nRep) {
+    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep)))
+  } else {
+    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(1:max(nRep),1 ))))
+  }
+  
+  condition <- as.vector(sapply(sample.names, function(x) unlist(strsplit(x, "_"))[1]))
+  nb.samples <- length(sample.names)
+  qData <-  data.frame(matrix(rep(0,size * nb.samples), ncol = nb.samples))
+  colnames(qData) <- sample.names
+  
+  for (i in 1:length(condition)){
+    IndiceCurrentCond <- which (base==condition[i])
+    qData[,i] <-rnorm(size, FC.factor*IndiceCurrentCond,0.1)
+  }
+  
+  # creation du pData
+  pData <- data.frame(Sample.name=sample.names,
+                      Condition =condition,
+                      Bio.Rep =1:ncol(qData))
+  
+  rownames(pData) <- pData$Sample.name
+  
+  
+  nb.MV <- floor(size * prop.MV)
+  indices.MV <- sample(ncol(qData)*size, nb.MV)
+  qData <- unlist(qData)
+  qData[indices.MV] <- NA
+  qData <- data.frame(matrix(qData, ncol=nb.samples))
+  colnames(qData) <-sample.names 
+  
+  # introduction des lignes vides
+  # TODO
+  
+  #introduction des MEC
+  #qData <- IntroduceMEC(qData, nbMEC)
+  # nb.MEC <- floor(nb.MV * prop.MEC)
+  # indices.MEC <- sample(nbCond*size, nb.MEC)
+  # for (i in 1:length(indices.MEC)){
+  #   ind.cond <-floor(indices.MEC[i]/size) +1
+  #   indices.samples <- which (base[ind.cond]==condition)
+  #   qData[indices.MEC[i]%%size,indices.samples] <- NA
+  # }
+  
+  
+  
+  #introduction des POV
+  #qData <- IntroducePOV(qData, nbPOV)
+  # nb.POV <- floor(nb.MV * (1-prop.MEC))
+  # ensDeTest <- setdiff(nbCond*size, indices.MEC)
+  # for (i in 1:length(ensDeTest)){
+  #   ind.cond <-floor(indices.MEC[i]/size) +1
+  #   indices.samples <- which (base[ind.cond]==condition)
+  #   qData[ensDeTest[i],indices.samples] <- NA
+  # }
+  # 
+  
+  return (list(qData=qData, pData=pData))
+}
+
+
+
+
+##########################################################
+##
+df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, 
+                          interC = FALSE, intraC = FALSE, fullRandom = FALSE) { 
+  
   
   # Order of Sample.name of pData and qdata must be the same
   if (table(colnames(qData) == pData$Sample.name)) {
@@ -128,76 +355,14 @@ df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, inte
     }
     
     colnames(qData.plus) <- pData$Sample.name
-    qData <- as.data.frame(qData.plus)
-    
-    res <- list(pData=pData, qData.original=qData)
-    
-    #### Mix columns qData ####
-    
-    if (fullRandom == 0) {
-      
-      if (interC == 1 && intraC == 0) { 
-        
-        print("conditions shuffled, replicates unchanged")
-        interC.list <- c(1:ncol(qData))
-        interC.list <- split(interC.list, sort(interC.list%%nCond))
-        new.interC.list <- unlist(sample(interC.list,nCond), use.names = F)
-        qData <- qData[,new.interC.list]
-        
-      }
-      
-      if (interC == 0 && intraC == 1) { 
-        
-        print("conditions unchanged, replicates shuffled")
-        intraC.list <- c(1:ncol(qData))
-        intraC.list <- split(intraC.list, sort(intraC.list%%nCond))
-        
-        new.order <- vector()
-        
-        for (i in (1:nCond) ) {
-          #print(i)
-          #i=1
-          new.order <- c(new.order,sample(intraC.list[[i]]))
-          
-          
-        }
-        qData <- qData[,new.order]
-      }
-      
-      if (interC == 1 && intraC == 1) { 
-        
-        print("conditions and replicates shuffled")
-        er.ac <- c(1:ncol(qData))
-        er.ac <- split(er.ac, sort(er.ac%%nCond))
-        new.order <- vector()
-        
-        for (i in (1:nCond) ) {
-          #print(i)
-          #i=1
-          new.order <- c(new.order,sample(er.ac[[i]]))
-          
-        }
-        qData <- qData[,new.order]
-        new.interC.list <- unlist(sample(er.ac,nCond), use.names = F)
-        qData <- qData[,new.interC.list]
-        
-        
-      }
-      
-    }
-    
-    else {
-      
-      print("full random")
-      random_col_indices <- sample(ncol(qData),ncol(qData))
-      #print(paste0("random_col_indices: ",list(random_col_indices)))
-      qData <- qData[,random_col_indices]
-    }
-    
+    qData <- qData.plus
   }
-  
-  res$qData.mixed <- qData
+  res <- list(pData=pData,qData=qData)
   return(res)
+  
+  qData <- as.data.frame(qData.plus)
+  
+  res <- list(pData=pData, qData.original=qData)
   
 }
 
@@ -226,21 +391,33 @@ data("Exp1_R25_pept")
 qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
 pData <- Biobase::pData(Exp1_R25_pept)
 
-test_imputation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom) {
+test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTest = 5) {
   
-  cat("\n *** nCond: ",nCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
-  
-  res <- df_generation(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom)
-  
-  head(res$qData.original)
-  head(res$qData.mixed)
-  res$pData
-  
-  obj.original <- CreateMinimalistMSnset(res$qData.original, res$pData)
-  obj.mixed <- CreateMinimalistMSnset(res$qData.mixed, res$pData[colnames(res$qData.mixed),])
-  
-  test_impute_functions(obj.original, obj.mixed)
-  
+  for (i in 1:nTest) {
+    nCond = sample(c(2:5),1)
+    #nRep = sample(c(2:4),1)
+    interC = sample(c(0,1),1)
+    intraC = sample(c(0,1),1)
+    fullRandom = sample(c(0,1),1)
+    
+    print("Caracteristiques du dataset :")
+    cat("\n *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
+    
+    # 1 - generation qData et pData
+    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, size = size)
+    
+    # 2 - etape de melange
+    res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
+                                   interC, intraC, fullRandom)
+    
+    
+    # 3 - mise sous forme de MSnset
+    obj.original <- CreateMinimalistMSnset(res.original)
+    obj.mixed <- CreateMinimalistMSnset(res.mixed)
+    
+    # 4 -test en serie des fonctions d'imputation
+    test_impute_functions(obj.original, obj.mixed)
+  }
   
 }
 
@@ -257,83 +434,22 @@ for (i in 1:5) {
   intraC = sample(c(0,1),1)
   fullRandom = sample(c(0,1),1)
   
-  test_imputation(qData, pData, nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom)
+  print("Caracteristiques du dataset :")
+  print(paste0("nbCond = ", nCond))
+  print(paste0("interC = ", interC))
+  print(paste0("intraC = ", intraC))
+  print(paste0("fullRandom = ", fullRandom))
+  
+  
+  test_imputation(nCond, nRep, mismatch.nRep = FALSE, interC, intraC, fullRandom)
   
 }
 #------------------------------------------------------------
-# impute.mi.test <- function(qData, pData, nb.iter = 3, 
-#                            nknn = 15, selec = 600, siz = 500, weight = 1, ind.comp = 1, 
-#                            progress.bar = TRUE, x.step.mod = 300, 
-#                            x.step.pi = 300, nb.rei = 100, method = 4, gridsize = 300, 
-#                            q = 0.95, q.min = 0, q.norm = 3, eps = 0, methodi = "slsa",
-#                            lapala = TRUE,
-#                            distribution="unif"){
-#   
-#   ## order exp and pData table before using imp4p functions
-#   conds <- factor(pData$Condition, levels=unique(pData$Condition))
-#   sample.names.old <- pData$Sample.name
-#   sTab <- pData
-#   new.order <- unlist(lapply(split(sTab, conds), function(x) {x['Sample.name']}))
-#   qData <- qData[,new.order]
-#   sTab <- pData[new.order,]
-#   
-#   
-#   
-#   conditions <- as.factor(sTab$Condition)
-#   repbio <- as.factor(sTab$Bio.Rep)
-#   reptech <-as.factor(sTab$Tech.Rep)
-#   
-#   tab <- qData
-#   
-#   if (progress.bar == TRUE) {
-#     cat(paste("\n 1/ Initial imputation under the MCAR assumption with impute.rand ... \n  "))
-#   }
-#   dat.slsa = imp4p::impute.rand(tab = tab, conditions = conditions)
-#   
-#   if (progress.bar == TRUE) {
-#     cat(paste("\n 2/ Estimation of the mixture model in each sample... \n  "))
-#   }
-#   res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions, 
-#                   x.step.mod = x.step.mod, 
-#                   x.step.pi = x.step.pi, nb.rei = nb.rei)
-#   
-#   
-#   if (progress.bar == TRUE) {
-#     cat(paste("\n 3/ Estimation of the probabilities each missing value is MCAR... \n  "))
-#   }
-#   born = estim.bound(tab = tab, conditions = conditions, q = q)
-#   proba = prob.mcar.tab(born$tab.upper, res)
-#   
-#   
-#   if (progress.bar == TRUE) {
-#     cat(paste("\n 4/ Multiple imputation strategy with mi.mix ... \n  "))
-#   }
-#   data.mi = mi.mix(tab = tab, tab.imp = dat.slsa, prob.MCAR = proba, 
-#                    conditions = conditions, repbio = repbio, reptech = reptech, 
-#                    nb.iter = nb.iter, nknn = nknn, weight = weight, selec = selec, 
-#                    siz = siz, ind.comp = ind.comp, methodi = methodi, q = q, 
-#                    progress.bar = progress.bar)
-#   
-#   if (lapala == TRUE){
-#     if (progress.bar == TRUE) {
-#       cat(paste("\n\n 5/ Imputation of rows with only missing values in a condition with impute.pa ... \n  "))
-#     }
-#     data.final = impute.pa2(tab = data.mi, conditions = conditions, 
-#                             q.min = q.min, q.norm = q.norm, eps = eps, distribution = distribution)
-#   } else {
-#     data.final <- data.mi
-#   }
-#   
-#   
-#   # restore previous order
-#   colnames(data.final) <- new.order
-#   data.final <- data.final[,sample.names.old]
-#   
-#   return(data.final)
-# }
-# qData.original <- impute.mi.test(res$qData.original, res$pData)
-# qData.mixed <- impute.mi.test(res$qData.mixed, res$pData)
-# head(qData.original)
-# head(qData.mixed)
-# testSpecialDatasets(qData.original, qData.mixed)
-# testSpecialDatasets(qData.original, qData.mixed)
+
+df.original <- df_generation(qData, pData, nCond = 3, nRep = 3)
+df.mixed <- mix_dataset(df.original)
+View(res$pData)
+View(res$qData)
+
+
+
