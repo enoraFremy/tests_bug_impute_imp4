@@ -3,135 +3,74 @@ library(DAPARdata)
 library(imp4p)
 library(testthat)
 
-
-
-## Noms et parametres des fonctions d'imputation a tester
-## utilises par do.call
-GetListFuncs <- function(obj=NULL){
+df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2, size = 100){
+  qData <- pData <- NULL
   
-  ll <- NULL
-  if (is.null(obj)) {
-    ##liste des fonctions a tester
-    ll <- c("wrapper.dapar.impute.mi",
-            "wrapper.impute.slsa",
-            "wrapper.impute.detQuant",
-            "wrapper.impute.pa",
-            "wrapper.impute.fixedValue",
-            "wrapper.impute.KNN"#,
-            #"wrapper.impute.mle"
-    ) }
-  else {
-    ll <- list(list(obj,nb.iter = 1),
-               list(obj),
-               list(obj,qval=0.025, factor=1),
-               list(obj,q.min = 0.025),
-               list(obj,fixVal=0),
-               list(obj,K=10)#,
-               #list(obj)
-    )
+  
+  #creation dataset sans missing values
+  base <- LETTERS[1:nbCond]
+  FC.factor = 100
+  if (!mismatch.nRep) {
+    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep)))
+    
+  } else {
+    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(1:max(nRep),1 ))))
   }
-  return(ll)
+  
+  
+  condition <- as.vector(sapply(sample.names, function(x) unlist(strsplit(x, "_"))[1]))
+  nb.samples <- length(sample.names)
+  qData <-  data.frame(matrix(rep(0,size * nb.samples), ncol = nb.samples))
+  colnames(qData) <- sample.names
+  
+  for (i in 1:length(condition)){
+    IndiceCurrentCond <- which (base==condition[i])
+    qData[,i] <-rnorm(size, FC.factor*IndiceCurrentCond,0.1)
+  }
+  
+  # creation du pData
+  pData <- data.frame(Sample.name=sample.names,
+                      Condition =condition,
+                      Bio.Rep =1:ncol(qData))
+  
+  
+  rownames(pData) <- pData$Sample.name
+  
+  
+  nb.MV <- floor(size * prop.MV)
+  indices.MV <- sample(ncol(qData)*size, nb.MV)
+  qData <- unlist(qData)
+  qData[indices.MV] <- NA
+  qData <- data.frame(matrix(qData, ncol=nb.samples))
+  colnames(qData) <-sample.names 
+  
+  # introduction des lignes vides
+  # TODO
+  
+  #introduction des MEC
+  #qData <- IntroduceMEC(qData, nbMEC)
+  # nb.MEC <- floor(nb.MV * prop.MEC)
+  # indices.MEC <- sample(nbCond*size, nb.MEC)
+  # for (i in 1:length(indices.MEC)){
+  #   ind.cond <-floor(indices.MEC[i]/size) +1
+  #   indices.samples <- which (base[ind.cond]==condition)
+  #   qData[indices.MEC[i]%%size,indices.samples] <- NA
+  # }
+  
+  
+  #introduction des POV
+  #qData <- IntroducePOV(qData, nbPOV)
+  # nb.POV <- floor(nb.MV * (1-prop.MEC))
+  # ensDeTest <- setdiff(nbCond*size, indices.MEC)
+  # for (i in 1:length(ensDeTest)){
+  #   ind.cond <-floor(indices.MEC[i]/size) +1
+  #   indices.samples <- which (base[ind.cond]==condition)
+  #   qData[ensDeTest[i],indices.samples] <- NA
+  # }
+  # 
+  
+  return (list(qData=qData, pData=pData))
 }
-
-
-##--------------------------------------------------------------------
-##Teste les fonctions d'imputation sur 2 datasets
-test_impute_functions <- function(obj.original, obj.mixed){
-  FUN <- GetListFuncs() # Liste des fonctions a tester
-  # Pour chaque fonction d'imputation a tester
-  for (i in 1:length(FUN)){
-    #i=1
-    print(paste0("test de la fonction : ",FUN[i]))
-    #recupere les fonctions a tester et leurs parametres
-    ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
-    ll_params_mixed <- GetListFuncs(obj.mixed)
-    
-    tryCatch(
-      {# execution de la fonction d'imputation a tester
-        obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
-        obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
-        
-        # tri des colonnes du dataset melange suivant l'ordre des 
-        # colonnes du dataset original
-        original.order <- colnames(exprs(obj.original.imputed))
-        qData.original.mixed <- exprs(obj.original.mixed)
-        qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
-        # exprs(obj.original.mixed) ne se modifie pas
-        
-        # head(exprs(obj.original))
-        # head(exprs(obj.mixed))
-        # head(exprs(obj.original.imputed))
-        # #head(exprs(obj.original.mixed))
-        # head(qData.original.mixed)
-        
-        # test de comparaison
-        expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
-
-      },
-      warning = function(w) {message(w)},
-      error = function(e) {message(e)},
-      finally = {}
-    )
-    
-  }
-}
-
-
-
-##########################################################
-##
-mix_dataset_Sam <- function(ll=NULL){
-  
-  if(is.null(ll)){warning('The list in empty')
-    return(NULL)}
-  
-  qData <- ll$qData
-  pData <- ll$pData
-  
-  #### Mix columns qData ####
-  random_col_indices <- NULL
-  if (fullRandom == FALSE) {
-    
-    if (interC == TRUE && intraC == FALSE) { 
-      
-      print("conditions shuffled, replicates unchanged")
-      # aller par multiples de nRep
-      interC.list <- list()
-      ll <- lapply(unique(conditions), function(x) which(conditions==x))
-      ll <- ll[sample(nbCond,nbCond)]
-    }
-    
-    if (interC == FALSE && intraC == TRUE) { 
-      
-      print("conditions unchanged, replicates shuffled")
-      ll <- lapply(unique(conditions), function(x) which(conditions==x))
-      ll <- lapply(ll, function(x) sample(x,length(x)))
-    }
-    
-    if (interC == TRUE && intraC == TRUE) { 
-      
-      print("conditions and replicates shuffled")
-      ll <- lapply(unique(conditions), function(x) which(conditions==x))
-      ll <- lapply(ll, function(x) sample(x,length(x)))
-      ll <- ll[sample(nbCond,nbCond)]
-    }
-    
-  }
-  
-  else {
-    
-    print("full random")
-    random_col_indices <- sample(ncol(qData),ncol(qData))
-    #print(paste0("random_col_indices: ",list(random_col_indices)))
-  }
-  qData <- qData[,random_col_indices]
-  pData <- pData[random_col_indices,]
-
-res <- list(pData=pData,qData=qData)
-return(res)
-}
-
-
 
 
 mix_dataset_Enora <- function(ll, nCond, nRep, mismatch.nRep = FALSE, 
@@ -211,8 +150,6 @@ mix_dataset_Enora <- function(ll, nCond, nRep, mismatch.nRep = FALSE,
 }
 
 
-
-
 CreateMinimalistMSnset <- function(ll){
   qData <- ll$qData
   pData <- ll$pData
@@ -243,155 +180,99 @@ CreateMinimalistMSnset <- function(ll){
 }
 
 
-#-------------------------------------------------------------------
-df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2, size = 100){
-  qData <- pData <- NULL
+## Noms et parametres des fonctions d'imputation a tester
+## utilises par do.call
+GetListFuncs <- function(obj=NULL){
   
-  
-  #creation dataset sans missing values
-  base <- LETTERS[1:nbCond]
-  FC.factor = 100
-  if (!mismatch.nRep) {
-    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep)))
-
-  } else {
-    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(1:max(nRep),1 ))))
+  ll <- NULL
+  if (is.null(obj)) {
+    ##liste des fonctions a tester
+    ll <- c("wrapper.dapar.impute.mi",
+            "wrapper.impute.mle",
+            "wrapper.impute.slsa",
+            "wrapper.impute.detQuant",
+            "wrapper.impute.pa",
+            "wrapper.impute.fixedValue",
+            "wrapper.impute.KNN"
+            
+    ) }
+  else {
+    ll <- list(list(obj,nb.iter = 1),
+               list(obj),
+               list(obj),
+               list(obj,qval=0.025, factor=1),
+               list(obj,q.min = 0.025),
+               list(obj,fixVal=0),
+               list(obj,K=10)
+    )
   }
-
-  
-  condition <- as.vector(sapply(sample.names, function(x) unlist(strsplit(x, "_"))[1]))
-  nb.samples <- length(sample.names)
-  qData <-  data.frame(matrix(rep(0,size * nb.samples), ncol = nb.samples))
-  colnames(qData) <- sample.names
-  
-  for (i in 1:length(condition)){
-    IndiceCurrentCond <- which (base==condition[i])
-    qData[,i] <-rnorm(size, FC.factor*IndiceCurrentCond,0.1)
-  }
-  
-  # creation du pData
-  pData <- data.frame(Sample.name=sample.names,
-                      Condition =condition,
-                      Bio.Rep =1:ncol(qData))
-
-
-  rownames(pData) <- pData$Sample.name
-  
-  
-  nb.MV <- floor(size * prop.MV)
-  indices.MV <- sample(ncol(qData)*size, nb.MV)
-  qData <- unlist(qData)
-  qData[indices.MV] <- NA
-  qData <- data.frame(matrix(qData, ncol=nb.samples))
-  colnames(qData) <-sample.names 
-  
-  # introduction des lignes vides
-  # TODO
-  
-  #introduction des MEC
-  #qData <- IntroduceMEC(qData, nbMEC)
-  # nb.MEC <- floor(nb.MV * prop.MEC)
-  # indices.MEC <- sample(nbCond*size, nb.MEC)
-  # for (i in 1:length(indices.MEC)){
-  #   ind.cond <-floor(indices.MEC[i]/size) +1
-  #   indices.samples <- which (base[ind.cond]==condition)
-  #   qData[indices.MEC[i]%%size,indices.samples] <- NA
-  # }
-
-  
-  #introduction des POV
-  #qData <- IntroducePOV(qData, nbPOV)
-  # nb.POV <- floor(nb.MV * (1-prop.MEC))
-  # ensDeTest <- setdiff(nbCond*size, indices.MEC)
-  # for (i in 1:length(ensDeTest)){
-  #   ind.cond <-floor(indices.MEC[i]/size) +1
-  #   indices.samples <- which (base[ind.cond]==condition)
-  #   qData[ensDeTest[i],indices.samples] <- NA
-  # }
-  # 
-  
-  return (list(qData=qData, pData=pData))
+  return(ll)
 }
 
 
-# ##########################################################
-# ##
-# df_generation <- function(qData, pData, nCond, nRep, mismatch.nRep = FALSE, 
-#                           interC = FALSE, intraC = FALSE, fullRandom = FALSE) { 
-# 
-# 
-#   # Order of Sample.name of pData and qdata must be the same
-#   if (table(colnames(qData) == pData$Sample.name)) {
-#     
-#     #### dataset base ####
-#     # pData 
-#     pData.plus <- data.frame(matrix(nrow = nRep*nCond, ncol = ncol(pData)))
-#     colnames(pData.plus) <- colnames(pData)
-#     pData <- pData.plus ; rm(pData.plus)
-#     pData$Bio.Rep <- c( 1:nrow(pData) )
-#     
-#     Sample.name <- vector()# set Sample.Name to A1,...,A(nRep),B1,...,B(nRep), C1,... and Condition to A,B,C,D...
-#     for (i in 1:nCond) {
-#       #i=4
-#       Sample.name <- c(Sample.name, paste0(LETTERS[i],1:nRep))
-#     }
-#     pData$Sample.name <- Sample.name
-#     pData$Condition <- substr(pData$Sample.name,1,1)
-#     rownames(pData) <- pData$Sample.name
-#     
-#     # qData
-#     qData.plus <- data.frame(matrix(nrow = nrow(qData), ncol = nRep*nCond))
-#     rownames(qData.plus) <- rownames(qData) ## rownames(qData) must begin by 0 ! ##
-#     colnames(qData.plus) <- pData$Sample.name
-#     
-#     for (i in (1:ncol(qData.plus))) {
-#       random_col_qData <- sample(ncol(qData),1)
-#       #print(paste0("Column qData random: ", random_col_qData))
-#       qData.plus[,i] <- qData[,random_col_qData]
-#     }
-#     
-#     colnames(qData.plus) <- pData$Sample.name
-#     qData <- qData.plus
-#   }
-# 
-#   res <- list(pData=pData,qData=qData)
-#   return(res)
-#   
-#   qData <- as.data.frame(qData.plus)
-#   
-#   res <- list(pData=pData, qData.original=qData)
-#   
-# 
-# }
+##Teste les fonctions d'imputation sur 2 datasets
+test_impute_functions <- function(obj.original, obj.mixed){
+  FUN <- GetListFuncs() # Liste des fonctions a tester
+  # Pour chaque fonction d'imputation a tester
+  for (i in 1:length(FUN)){
+    #i=1
+    cat("\ntest de la fonction : ",FUN[i])
+    #recupere les fonctions a tester et leurs parametres
+    ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
+    ll_params_mixed <- GetListFuncs(obj.mixed)
+    
+    tryCatch(
+      {# execution de la fonction d'imputation a tester
+        obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
+        obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
+        
+        # tri des colonnes du dataset melange suivant l'ordre des 
+        # colonnes du dataset original
+        original.order <- colnames(exprs(obj.original.imputed))
+        qData.original.mixed <- exprs(obj.original.mixed)
+        qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
+        # exprs(obj.original.mixed) ne se modifie pas
+        
+        # head(exprs(obj.original))
+        # head(exprs(obj.mixed))
+        # head(exprs(obj.original.imputed))
+        # #head(exprs(obj.original.mixed))
+        # head(qData.original.mixed)
+        
+        # test de comparaison
+        expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+
+      },
+      warning = function(w) {message(w)},
+      error = function(e) {message(e)},
+      finally = {}
+    )
+    
+  }
+}
+
+
 
 
 #------------------------------------------------------------
 # Automatisation
 #------------------------------------------------------------
-data("Exp1_R25_pept")
-qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
-pData <- Biobase::pData(Exp1_R25_pept)
+test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, interC, intraC, fullRandom, nTest = 5) {
 
-test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTest = 5) {
-
-  
-  for (i in 1:nTest) {
-    nCond = sample(c(2:5),1)
-    #nRep = sample(c(2:4),1)
-    interC = sample(c(0,1),1)
-    intraC = sample(c(0,1),1)
-    fullRandom = sample(c(0,1),1)
     
-    print("Caracteristiques du dataset :")
-    cat("\n *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
+  for (i in 1:nTest) {
+    
+    cat("\n Caracteristiques du dataset :\n
+        *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
     
     # 1 - generation qData et pData
-    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, size = size)
+    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.5, size = size)
     
     # 2 - etape de melange
     res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
                                    interC, intraC, fullRandom)
-    
+    print(head(res.original$qData))
+    print(head(res.mixed$qData))
     
     # 3 - mise sous forme de MSnset
     obj.original <- CreateMinimalistMSnset(res.original)
@@ -403,3 +284,10 @@ test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTe
   }
   
 }
+
+test_imputation(3,2,300,F,0,1,0,2)
+# nCond = sample(c(2:5),1)
+# nRep = sample(c(2:4),1)
+# interC = sample(c(0,1),1)
+# intraC = sample(c(0,1),1)
+# fullRandom = sample(c(0,1),1)
