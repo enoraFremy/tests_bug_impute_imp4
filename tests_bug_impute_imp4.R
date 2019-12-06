@@ -14,13 +14,7 @@ testSpecialDatasets <- function(qData.original, qData.mixed){
 }
 
 
-impute.mi.test <- function(qData, pData, nb.iter = 3, 
-                               nknn = 15, selec = 600, siz = 500, weight = 1, ind.comp = 1, 
-                               progress.bar = TRUE, x.step.mod = 300, 
-                               x.step.pi = 300, nb.rei = 100, method = 4, gridsize = 300, 
-                               q = 0.95, q.min = 0, q.norm = 3, eps = 0, methodi = "slsa",
-                               lapala = TRUE,
-                               distribution="unif"){
+impute.mi.test <- function(qData, pData, nb.iter = 1,lapala = TRUE){
   
   ## order exp and pData table before using imp4p functions
   conds <- factor(pData$Condition, levels=unique(pData$Condition))
@@ -38,39 +32,30 @@ impute.mi.test <- function(qData, pData, nb.iter = 3,
   
   tab <- qData
   
-  if (progress.bar == TRUE) {
     cat(paste("\n 1/ Initial imputation under the MCAR assumption with impute.rand ... \n  "))
-  }
+ 
   dat.slsa = imp4p::impute.rand(tab = tab, conditions = conditions)
   
-  if (progress.bar == TRUE) {
     cat(paste("\n 2/ Estimation of the mixture model in each sample... \n  "))
-  }
-  res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions, 
-                  x.step.mod = x.step.mod, 
-                  x.step.pi = x.step.pi, nb.rei = nb.rei)
+  
+  res = estim.mix(tab = tab, tab.imp = dat.slsa, conditions = conditions)
   
   
-  if (progress.bar == TRUE) {
     cat(paste("\n 3/ Estimation of the probabilities each missing value is MCAR... \n  "))
-  }
+ 
   born = estim.bound(tab = tab, conditions = conditions, q = q)
   proba = prob.mcar.tab(born$tab.upper, res)
   
   
-  if (progress.bar == TRUE) {
     cat(paste("\n 4/ Multiple imputation strategy with mi.mix ... \n  "))
-  }
+  
   data.mi = mi.mix(tab = tab, tab.imp = dat.slsa, prob.MCAR = proba, 
                    conditions = conditions, repbio = repbio, reptech = reptech, 
-                   nb.iter = nb.iter, nknn = nknn, weight = weight, selec = selec, 
-                   siz = siz, ind.comp = ind.comp, methodi = methodi, q = q, 
-                   progress.bar = progress.bar)
+                   nb.iter = nb.iter,progress.bar = TRUE)
   
   if (lapala == TRUE){
-    if (progress.bar == TRUE) {
       cat(paste("\n\n 5/ Imputation of rows with only missing values in a condition with impute.pa ... \n  "))
-    }
+
     data.final = impute.pa2(tab = data.mi, conditions = conditions, 
                             q.min = q.min, q.norm = q.norm, eps = eps, distribution = distribution)
   } else {
