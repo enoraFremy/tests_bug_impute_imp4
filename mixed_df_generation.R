@@ -212,14 +212,20 @@ GetListFuncs <- function(obj=NULL){
 
 ##Teste les fonctions d'imputation sur 2 datasets
 test_impute_functions <- function(obj.original, obj.mixed){
+  
   FUN <- GetListFuncs() # Liste des fonctions a tester
+  df_list <- list()
+  
   # Pour chaque fonction d'imputation a tester
   for (i in 1:length(FUN)){
     #i=1
-    cat("\ntest de la fonction : ",FUN[i])
+    cat("\nTest de la fonction : ",FUN[i])
     #recupere les fonctions a tester et leurs parametres
     ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
     ll_params_mixed <- GetListFuncs(obj.mixed)
+    
+    df_list$res.original <- exprs(obj.original)
+    df_list$res.mixed <- exprs(obj.mixed)
     
     tryCatch(
       {# execution de la fonction d'imputation a tester
@@ -231,6 +237,13 @@ test_impute_functions <- function(obj.original, obj.mixed){
         original.order <- colnames(exprs(obj.original.imputed))
         qData.original.mixed <- exprs(obj.original.mixed)
         qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
+        
+        # stocker les resultats d'imputation de orginal et mixed pour chaque methode
+        
+        method = paste0("res.ori.",FUN[i])
+        df_list[[method]] <- exprs(obj.original.imputed)
+        method = paste0("res.mix.",FUN[i])
+        df_list[[method]] <- qData.original.mixed
         # exprs(obj.original.mixed) ne se modifie pas
         
         # head(exprs(obj.original))
@@ -249,6 +262,7 @@ test_impute_functions <- function(obj.original, obj.mixed){
     )
     
   }
+  return(df_list)
 }
 
 
@@ -258,6 +272,8 @@ test_impute_functions <- function(obj.original, obj.mixed){
 # Automatisation
 #------------------------------------------------------------
 test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, interC, intraC, fullRandom, nTest = 5) {
+  
+  res <- list()
 
     
   for (i in 1:nTest) {
@@ -266,26 +282,35 @@ test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, int
         *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
     
     # 1 - generation qData et pData
-    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.5, size = size)
+    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, size = size)
     
     # 2 - etape de melange
     res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
                                    interC, intraC, fullRandom)
-    print(head(res.original$qData))
-    print(head(res.mixed$qData))
+    #print(head(res.original$qData))
+    #print(head(res.mixed$qData))
     
     # 3 - mise sous forme de MSnset
     obj.original <- CreateMinimalistMSnset(res.original)
     obj.mixed <- CreateMinimalistMSnset(res.mixed)
     
     # 4 -test en serie des fonctions d'imputation
-    test_impute_functions(obj.original, obj.mixed)
+    impute <- test_impute_functions(obj.original, obj.mixed)
+    tour <- paste0("tour",i)
+    res[[tour]] <- impute
 
   }
-  
+  return(res)
 }
 
-test_imputation(3,2,300,F,0,1,0,2)
+res <- test_imputation(3,2,100,F,0,1,0,5)
+summary(res)
+head(res$tour1$res.original)
+head(res$tour1$res.mixed)
+head(res$tour1$res.ori.wrapper.impute.mle)
+head(res$tour1$res.mix.wrapper.impute.mle)
+
+
 # nCond = sample(c(2:5),1)
 # nRep = sample(c(2:4),1)
 # interC = sample(c(0,1),1)
