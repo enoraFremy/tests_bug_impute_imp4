@@ -61,19 +61,16 @@ test_impute_functions <- function(obj.original, obj.mixed){
       # head(exprs(obj.original))
       # head(exprs(obj.mixed))
       # head(exprs(obj.original.imputed))
-      # #head(exprs(obj.original.mixed))
-      # head(qData.original.mixed)
+          # #head(exprs(obj.original.mixed))
+          # head(qData.original.mixed)
     
-      # test de comparaison
-      expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
-      }
-      , warning = function(w) {
-        message(w)
-      }, error = function(e) {
-        message(e)
-      }, finally = {
-        #cleanup-code 
-      })
+          # test de comparaison
+          expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+      },
+      warning = function(w) {message(w)},
+      error = function(e) {message(e)},
+      finally = {}
+      )
     
   }
 }
@@ -293,7 +290,7 @@ df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2,
   # TODO
   
   #introduction des MEC
-  qData <- IntroduceMEC(qData, nbMEC)
+  #qData <- IntroduceMEC(qData, nbMEC)
   # nb.MEC <- floor(nb.MV * prop.MEC)
   # indices.MEC <- sample(nbCond*size, nb.MEC)
   # for (i in 1:length(indices.MEC)){
@@ -305,7 +302,7 @@ df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2,
   
   
   #introduction des POV
-  qData <- IntroducePOV(qData, nbPOV)
+  #qData <- IntroducePOV(qData, nbPOV)
   # nb.POV <- floor(nb.MV * (1-prop.MEC))
   # ensDeTest <- setdiff(nbCond*size, indices.MEC)
   # for (i in 1:length(ensDeTest)){
@@ -404,11 +401,6 @@ test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTe
     fullRandom = sample(c(0,1),1)
     
     print("Caracteristiques du dataset :")
-    print(paste0("nbCond = ", nCond))
-    print(paste0("interC = ", interC))
-    print(paste0("intraC = ", intraC))
-    print(paste0("fullRandom = ", fullRandom))
-    
     cat("\n *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
   
   # 1 - generation qData et pData
