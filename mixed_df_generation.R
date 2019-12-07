@@ -68,10 +68,12 @@ test_impute_functions <- function(obj.original, obj.mixed){
         expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
 
       },
-      warning = function(w) {message(w)},
-      error = function(e) {message(e)},
+      warning = function(w) {message(w, appendLF = TRUE)},
+      error = function(e) {message(e, appendLF = TRUE)},
       finally = {}
     )
+    
+    print("\n---------------------------")
     
   }
 }
@@ -243,8 +245,41 @@ CreateMinimalistMSnset <- function(ll){
 }
 
 
+
+IntroduceMEC <- function(qData, condition, nbMEC){
+  n <- nbMEC
+  conds <- unique(condition)
+  conds <- sample(conds,length(conds))
+  for (i in 1:length(conds)){
+    nSamplesInCond <- length(which(condition==conds[i]))
+    nMax.MEC <- floor(n/nSamplesInCond)
+    if (nMax.MEC != 0){
+      ind <- sample(size, sample(nMax.MEC,1))
+      qData[ind,which(condition==conds[i])] <- NA
+      n <- n - length(ind)*nSamplesInCond
+    }
+  }
+  return(qData)
+}
+
+IntroducePOV <- function(qData, condition, nbPOV){
+  n <- nbPOV
+  condition <- sample(colnames(qData), ncol(qData))
+  for (i in 1:length(condition)){
+    if (n != 0){
+      ind.autorises<- which(!is.na(qData)[,i])
+      ind <- sample(ind.autorises, sample(n, 1))
+      qData[ind,which(condition==colnames(qData)[i])] <- NA
+      n <- n - length(ind)
+    }
+  }
+  return(qData)
+}
+
+
+
 #-------------------------------------------------------------------
-df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2, size = 100){
+df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2, prop.MEC = 0.3, prop.POV = 0.5, size = size){
   qData <- pData <- NULL
   
   
@@ -278,29 +313,24 @@ df_generation_Sam <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2,
   rownames(pData) <- pData$Sample.name
   
   
-  nb.MV <- floor(size * prop.MV)
-  indices.MV <- sample(ncol(qData)*size, nb.MV)
-  qData <- unlist(qData)
-  qData[indices.MV] <- NA
-  qData <- data.frame(matrix(qData, ncol=nb.samples))
-  colnames(qData) <-sample.names 
+   nb.MV <- floor(size * prop.MV)
+   nb.MEC <- floor(nb.MV * prop.MEC)
+   nb.POV <- floor(nb.MV * (1-prop.MEC))
+  # indices.MV <- sample(ncol(qData)*size, nb.MV)
+  # qData <- unlist(qData)
+  # qData[indices.MV] <- NA
+  # qData <- data.frame(matrix(qData, ncol=nb.samples))
+  # colnames(qData) <-sample.names 
   
   # introduction des lignes vides
   # TODO
   
   #introduction des MEC
-  #qData <- IntroduceMEC(qData, nbMEC)
-  # nb.MEC <- floor(nb.MV * prop.MEC)
-  # indices.MEC <- sample(nbCond*size, nb.MEC)
-  # for (i in 1:length(indices.MEC)){
-  #   ind.cond <-floor(indices.MEC[i]/size) +1
-  #   indices.samples <- which (base[ind.cond]==condition)
-  #   qData[indices.MEC[i]%%size,indices.samples] <- NA
-  # }
+  qData <- IntroduceMEC(qData, condition, nb.MEC)
 
   
   #introduction des POV
-  #qData <- IntroducePOV(qData, nbPOV)
+  qData <- IntroducePOV(qData, condition, nb.POV)
   # nb.POV <- floor(nb.MV * (1-prop.MEC))
   # ensDeTest <- setdiff(nbCond*size, indices.MEC)
   # for (i in 1:length(ensDeTest)){
@@ -372,11 +402,11 @@ data("Exp1_R25_pept")
 qData <- (Biobase::exprs(Exp1_R25_pept))[1:1000,]
 pData <- Biobase::pData(Exp1_R25_pept)
 
-test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTest = 5) {
+test_imputation <- function(nbCond=3, nRep=3, size = 1000, mismatch.nRep = TRUE, nTest = 10) {
 
   
   for (i in 1:nTest) {
-    nCond = sample(c(2:5),1)
+    nbCond = sample(c(2:5),1)
     #nRep = sample(c(2:4),1)
     interC = sample(c(0,1),1)
     intraC = sample(c(0,1),1)
@@ -386,7 +416,7 @@ test_imputation <- function(nbCond, nRep, size = 100, mismatch.nRep = FALSE, nTe
     cat("\n *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
     
     # 1 - generation qData et pData
-    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, size = size)
+    res.original <- df_generation_Sam(nbCond, nRep, mismatch.nRep, prop.MV = 0.2, prop.MEC = 0.3, prop.POV = 0.5, size = size)
     
     # 2 - etape de melange
     res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
