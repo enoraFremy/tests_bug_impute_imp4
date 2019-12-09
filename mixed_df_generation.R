@@ -77,11 +77,6 @@ GenerateRandomDataset <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 
   nb.MV <- floor(size * prop.MV)
   nb.MEC <- floor(nb.MV * prop.MEC)
   nb.POV <- floor(nb.MV * prop.POV)
-  #indices.MV <- sample(ncol(qData)*size, nb.MV)
-  #qData <- unlist(qData)
-  #qData[indices.MV] <- NA
-  #qData <- data.frame(matrix(qData, ncol=nb.samples))
-  #colnames(qData) <-sample.names 
   
   # introduction des lignes vides
   # TODO
@@ -222,7 +217,7 @@ GetListFuncs <- function(obj=NULL){
             
     ) }
   else {
-    ll <- list(list(obj,nb.iter = 1),
+    ll <- list(list(obj,nb.iter = 1, progress.bar = FALSE),
                list(obj),
                list(obj),
                list(obj,qval=0.025, factor=1),
@@ -240,48 +235,60 @@ test_impute_functions <- function(obj.original, obj.mixed){
   
   FUN <- GetListFuncs() # Liste des fonctions a tester
   df_list <- list()
+  df_list$obj.original <- obj.original
+  df_list$obj.mixed <- obj.mixed
+  ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
+  ll_params_mixed <- GetListFuncs(obj.mixed)
   
   # Pour chaque fonction d'imputation a tester
   for (i in 1:length(FUN)){
     #i=1
     cat("\nTest de la fonction : ",FUN[i])
     #recupere les fonctions a tester et leurs parametres
-    ll_params_original <- GetListFuncs(obj.original) # param a charger pour la fonction courante
-    ll_params_mixed <- GetListFuncs(obj.mixed)
     
-    df_list$res.original <- exprs(obj.original)
-    df_list$res.mixed <- exprs(obj.mixed)
     
     tryCatch(
       {# execution de la fonction d'imputation a tester
-        obj.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
-        obj.original.mixed <- do.call(FUN[i],ll_params_mixed[[i]])
+        obj.original.imputed <- obj.original
+        tmp.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
+        if (class(qData.obj.original.imputed)[1] != 'MSnSet'){
+          Biobase::exprs(obj.original.imputed) <- tmp.original.imputed
+        } else {
+          obj.original.imputed <- tmp.original.imputed
+        }
+        
+        obj.mixed.imputed <- obj.mixed
+        tmp.mixed.imputed <- do.call(FUN[i],ll_params_mixed[[i]])
+        if (class(qData.obj.mixed.imputed)[1] != 'MSnSet'){
+          Biobase::exprs(obj.mixed.imputed) <- tmp.mixed.imputed
+        } else {
+          obj.mixed.imputed <- tmp.mixed.imputed
+        }
         
         # tri des colonnes du dataset melange suivant l'ordre des 
         # colonnes du dataset original
-        original.order <- colnames(exprs(obj.original.imputed))
-        qData.original.mixed <- exprs(obj.original.mixed)
-        qData.original.mixed <- (exprs(obj.original.mixed))[,original.order]
+        original.order <- colnames(Biobase::exprs(obj.original.imputed))
+        tmp.qData <- Biobase::exprs(obj.mixed.imputed)[,original.order]
+        tmp.pData <- Biobase::pData(obj.mixed.imputed)[original.order,]
+        obj.mixed.imputed <- CreateMinimalistMSnset(list(qData=tmp.qData, pData=tmp.pData))
+
+        
+       
         
         # stocker les resultats d'imputation de orginal et mixed pour chaque methode
         
-        method = paste0("res.ori.",FUN[i])
-        df_list[[method]] <- exprs(obj.original.imputed)
-        method = paste0("res.mix.",FUN[i])
-        df_list[[method]] <- qData.original.mixed
-        # exprs(obj.original.mixed) ne se modifie pas
-        
-        # head(exprs(obj.original))
-        # head(exprs(obj.mixed))
-        # head(exprs(obj.original.imputed))
-        # #head(exprs(obj.original.mixed))
-        # head(qData.original.mixed)
+        method = paste0("obj.ori.",FUN[i])
+        df_list[[method]] <- obj.original.imputed
+        method = paste0("obj.mix.",FUN[i])
+        df_list[[method]] <- obj.mixed.imputed
         
         # test de comparaison
-        expect_equal(exprs(obj.original.imputed), qData.original.mixed,tolerance=1)
+        expect_equal(Biobase::exprs(obj.original.imputed), Biobase::exprs(obj.mixed.imputed), tolerance=1)
         
       },
-      warning = function(w) {message(w)},
+      warning = function(w) {
+        #message(w)
+        },
       error = function(e) {message(e)},
       finally = {}
     )
@@ -302,6 +309,8 @@ test_imputation <- function(maxNbCond=3, MaxnRep=3, fixedDesign = FALSE, size = 
   
   
   for (i in 1:nTest) {
+    
+    print(paste0("##--------------------------- TEST ", i, " ---------------------------------##"))
     if (isTRUE(fixedDesign)){
       nbCond <- maxNbCond
       nRep <- MaxnRep
@@ -323,29 +332,37 @@ test_imputation <- function(maxNbCond=3, MaxnRep=3, fixedDesign = FALSE, size = 
     # 2 - etape de melange
     res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
                                    interC, intraC, fullRandom)
-    #print(head(res.original$qData))
-    #print(head(res.mixed$qData))
-    
+   
     # 3 - mise sous forme de MSnset
     obj.original <- CreateMinimalistMSnset(res.original)
     obj.mixed <- CreateMinimalistMSnset(res.mixed)
     
     # 4 -test en serie des fonctions d'imputation
     impute <- test_impute_functions(obj.original, obj.mixed)
-    #tour <- paste0("tour",i)
-    #res[[tour]] <- impute
+    tour <- paste0("tour",i)
+    res[[tour]] <- impute
     
   }
   return(res)
 }
 
-res <- test_imputation(3,2,100,F,0,1,0,5)
-summary(res)
-head(res$tour1$res.original)
-head(res$tour1$res.mixed)
-head(res$tour1$res.ori.wrapper.impute.mle)
-head(res$tour1$res.mix.wrapper.impute.mle)
 
+
+
+
+# 
+# res <- test_imputation(3,2,100,F,0,1,0,5)
+# summary(res)
+toto <- function(test, size, func.name){
+  print(paste0('---------obj.original---------' ))
+  print(exprs(res[[paste0('tour',test)]]$obj.original)[1:size,])
+  print(paste0('---------obj.mixed---------' ))
+  print(exprs(res[[paste0('tour',test)]]$obj.mixed)[1:size,])
+  print(paste0('---------obj.ori.',func.name, '---------' ))
+  print(exprs(res[[paste0('tour',test)]][[paste0("obj.ori.",func.name)]])[1:size,])
+  print(paste0('---------obj.mix.',func.name, '---------' ))
+  print(exprs(res[[paste0('tour',test)]][[paste0("obj.mix.",func.name)]])[1:size,])
+}
 
 # nCond = sample(c(2:5),1)
 # nRep = sample(c(2:4),1)
