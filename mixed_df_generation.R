@@ -6,23 +6,41 @@ library(testthat)
 
 
 
-IntroduceMEC <- function(qData, condition, nbMEC){
+IntroduceMEC <- function(qData, condition, nbMEC, verbose=FALSE){
+  if (isTRUE(verbose)) {
+    if (nbMEC == 0){
+    warning("nbMEC = 0 : No MEC have been introduced")
+    return(qData)
+    }
+  }
   n <- nbMEC
   conds <- unique(condition)
   conds <- sample(conds,length(conds))
+  print(n)
+  print(condition)
+  print(conds)
   for (i in 1:length(conds)){
     nSamplesInCond <- length(which(condition==conds[i]))
     nMax.MEC <- floor(n/nSamplesInCond)
+    print(nSamplesInCond)
+    print(nMax.MEC)
     if (nMax.MEC != 0){
-      ind <- sample(size, sample(nMax.MEC,1))
+      ind <- sample(nrow(qData), sample(nMax.MEC,1))
       qData[ind,which(condition==conds[i])] <- NA
       n <- n - length(ind)*nSamplesInCond
     }
   }
+  print("END")
   return(qData)
 }
 
-IntroducePOV <- function(qData, condition, nbPOV){
+IntroducePOV <- function(qData, condition, nbPOV, verbose=FALSE){
+  if (isTRUE(verbose)) {
+    if (nbPOV == 0){
+      warning("nbPOV = 0 : No POV have been introduced")
+      return(qData)
+    }
+  }
   n <- nbPOV
   condition <- sample(colnames(qData), ncol(qData))
   for (i in 1:length(condition)){
@@ -37,12 +55,41 @@ IntroducePOV <- function(qData, condition, nbPOV){
 }
 
 
-GenerateRandomDataset <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 0.2, prop.MEC=0.3, prop.POV=0.7, size = 100){
+
+##' This function is xxxxxx
+##'
+##' @title xxxxxx
+##' @param xxx.
+##' @param sTab xxxx 
+##' @param xxxxx
+##' @param type xxxxx
+##' @return A list of two items : xxxxx
+##' @author Enora Fremy, Samuel Wieczorek
+##' @examples
+##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
+GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nRep = FALSE,
+                                  prop.MV = 0.2, prop.MEC=0.3, prop.POV=0.7,size = 100){
   qData <- pData <- NULL
-  if (1 != (prop.MEC + prop.POV)){
+  if (prop.MV==0 && (1 != (prop.MEC + prop.POV))){
     warning("The sum of probability of POV and MEC missing values must be equal to 1.")
     return(NULL)
   }
+  
+  if (isTRUE(fixedDesign)){
+    nbCond <- nbCond
+    nRep <- nRep
+  } else {
+    nbCond = sample(c(2:nbCond),1)
+    nRep = sample(c(1:nRep),1)
+  }
+  
+  interC = sample(c(0,1),1)
+  intraC = sample(c(0,1),1)
+  fullRandom = sample(c(0,1),1)
+  
+  cat("\n Caracteristiques du dataset :\n
+        *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
+  
   
   #creation dataset sans missing values
   base <- LETTERS[1:nbCond]
@@ -75,6 +122,7 @@ GenerateRandomDataset <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 
   
   
   nb.MV <- floor(size * prop.MV)
+  print(nb.MV)
   nb.MEC <- floor(nb.MV * prop.MEC)
   nb.POV <- floor(nb.MV * prop.POV)
   
@@ -82,21 +130,38 @@ GenerateRandomDataset <- function(nbCond, nRep, mismatch.nRep = FALSE,prop.MV = 
   # TODO
   
   #introduction des MEC
+  print("Introdution of MEC MV")
   qData <- IntroduceMEC(qData, condition, nb.MEC)
 
   #introduction des POV
+  print("Introdution of POV MV")
   qData <- IntroducePOV(qData, condition, nb.POV)
  
   return (list(qData=qData, pData=pData))
 }
 
 
-mix_dataset_Enora <- function(ll, nCond, nRep, mismatch.nRep = FALSE, 
-                              interC = FALSE, intraC = FALSE, fullRandom = FALSE){
+##' This function is xxxxxx
+##'
+##' @title xxxxxx
+##' @param ll
+##' @param nCond xxxx 
+##' @param xxxxx
+##' @param type xxxxx
+##' @return A list of two items : xxxxx
+##' @author Enora Fremy
+##' @examples
+##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
+##' ll.mixed <- mix_dataset_Enora(ll, do.interC = TRUE, do.intraC = TRUE, do.fullRandom = TRUE)
+mix_dataset_Enora <- function(ll, do.interC = FALSE, do.intraC = FALSE, do.fullRandom = FALSE){
   
   qData <- ll$qData
   pData <- ll$pData
+  nCond <- length(unique(pData$Condition))
   
+  if (isTRUE(do.interC)){interC <- sample(c(TRUE, FALSE), 1)}
+  if (isTRUE(do.intraC)){intraC <- sample(c(TRUE, FALSE), 1)}
+  if (isTRUE(do.fullRandom)){fullRandom <- sample(c(TRUE, FALSE), 1)}
   #### Mix columns qData ####
   
   if (fullRandom == 0) {
@@ -123,9 +188,7 @@ mix_dataset_Enora <- function(ll, nCond, nRep, mismatch.nRep = FALSE,
         #print(i)
         #i=1
         new.order <- c(new.order,sample(intraC.list[[i]]))
-        
-        
-      }
+         }
       qData <- qData[,new.order]
       pData <- pData[new.order,]
     }
@@ -153,23 +216,26 @@ mix_dataset_Enora <- function(ll, nCond, nRep, mismatch.nRep = FALSE,
     
   }
   
-  else {
-    
-    print("full random")
+  else { ## Full random option
     random_col_indices <- sample(ncol(qData),ncol(qData))
-    #print(paste0("random_col_indices: ",list(random_col_indices)))
     qData <- qData[,random_col_indices]
     pData <- pData[random_col_indices,]
   }
   
-  
-  #res$qData.mixed <- qData
   return(list(qData=qData, pData=pData))
 }
 
 
 
-###############################################################☺
+##' This function is xxxxxx
+##'
+##' @title xxxxxx
+##' @param ll
+##' @param type xxxxx
+##' @return An object of class MSnSet
+##' @author Enora Fremy, Samuel Wieczorek
+##' @examples
+##' 
 CreateMinimalistMSnset <- function(ll){
   qData <- ll$qData
   pData <- ll$pData
@@ -202,6 +268,16 @@ CreateMinimalistMSnset <- function(ll){
 
 ## Noms et parametres des fonctions d'imputation a tester
 ## utilises par do.call
+##' This function is xxxxxx
+##'
+##' @title xxxxxx
+##' @param xxx.
+##' @param sTab xxxx 
+##' @param xxxxx
+##' @param type xxxxx
+##' @return A list of two items : xxxxx
+##' @author Enora Fremy, Samuel Wieczorek
+##' @examples
 GetListFuncs <- function(obj=NULL){
   
   ll <- NULL
@@ -230,7 +306,27 @@ GetListFuncs <- function(obj=NULL){
 }
 
 
+
+
+
+
 ##Teste les fonctions d'imputation sur 2 datasets
+##' This function is xxxxxx
+##'
+##' @title xxxxxx
+##' @param obj.original xxxx
+##' @param obj.mixed xxxx 
+##' @return A list of two items : xxxxx
+##' @author Enora Fremy, Samuel Wieczorek
+##' @examples
+##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0, size = 100)
+##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
+##' res <- test_imputation(nTest = 5,genDatasetArgs , mixDatasetArgs)
+##' ll.original <- do.call("GenerateRandomDataset", genDatasetArgs)
+##' ll.mixed <- do.call("mix_dataset_Enora",list(ll.original,mixDatasetArgs))
+##' obj.original <- CreateMinimalistMSnset(ll.original)
+##' obj.mixed <- CreateMinimalistMSnset(ll.mixed)
+##' test_impute_functions(obj.original, obj.mixed)
 test_impute_functions <- function(obj.original, obj.mixed){
   
   FUN <- GetListFuncs() # Liste des fonctions a tester
@@ -272,9 +368,6 @@ test_impute_functions <- function(obj.original, obj.mixed){
         tmp.pData <- Biobase::pData(obj.mixed.imputed)[original.order,]
         obj.mixed.imputed <- CreateMinimalistMSnset(list(qData=tmp.qData, pData=tmp.pData))
 
-        
-       
-        
         # stocker les resultats d'imputation de orginal et mixed pour chaque methode
         
         method = paste0("obj.ori.",FUN[i])
@@ -303,39 +396,36 @@ test_impute_functions <- function(obj.original, obj.mixed){
 #------------------------------------------------------------
 # Automatisation
 #------------------------------------------------------------
-test_imputation <- function(maxNbCond=3, MaxnRep=3, fixedDesign = FALSE, size = 1000, mismatch.nRep = FALSE, interC, intraC, fullRandom, nTest = 5) {
+##' This function is xxxxxx
+##'
+##' @title xxxxxx
+##' @param xxx.
+##' @param sTab xxxx 
+##' @param xxxxx
+##' @param type xxxxx
+##' @return A list of two items : xxxxx
+##' @author Enora Fremy, Samuel Wieczorek
+##' @examples
+##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0, size = 100)
+##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
+##' res <- test_imputation(nTest = 5,genDatasetArgs , mixDatasetArgs)
+test_imputation <- function(nTest = 5, genDatasetArgs=list(), mixDatasetArgs=list()) {
   
   res <- list()
   
-  
   for (i in 1:nTest) {
     
-    print(paste0("##--------------------------- TEST ", i, " ---------------------------------##"))
-    if (isTRUE(fixedDesign)){
-      nbCond <- maxNbCond
-      nRep <- MaxnRep
-    } else {
-      nbCond = sample(c(2:maxNbCond),1)
-      nRep = sample(c(1:MaxnRep),1)
-    }
-    
-    interC = sample(c(0,1),1)
-    intraC = sample(c(0,1),1)
-    fullRandom = sample(c(0,1),1)
-    
-    cat("\n Caracteristiques du dataset :\n
-        *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
+    print(paste0("#######--------------------------- TEST ", i, " ---------------------------------#######"))
     
     # 1 - generation qData et pData
-    res.original <- GenerateRandomDataset(nbCond=nbCond, nRep=nRep,mismatch.nRep, prop.MV = 0.2, size = size)
+    ll.original <- do.call("GenerateRandomDataset", genDatasetArgs)
     
     # 2 - etape de melange
-    res.mixed <- mix_dataset_Enora(res.original, nbCond, nRep, mismatch.nRep = FALSE, 
-                                   interC, intraC, fullRandom)
+    ll.mixed <- do.call("mix_dataset_Enora",list(ll.original,mixDatasetArgs))
    
     # 3 - mise sous forme de MSnset
-    obj.original <- CreateMinimalistMSnset(res.original)
-    obj.mixed <- CreateMinimalistMSnset(res.mixed)
+    obj.original <- CreateMinimalistMSnset(ll.original)
+    obj.mixed <- CreateMinimalistMSnset(ll.mixed)
     
     # 4 -test en serie des fonctions d'imputation
     impute <- test_impute_functions(obj.original, obj.mixed)
@@ -345,7 +435,6 @@ test_imputation <- function(maxNbCond=3, MaxnRep=3, fixedDesign = FALSE, size = 
   }
   return(res)
 }
-
 
 
 
@@ -363,9 +452,3 @@ toto <- function(test, size, func.name){
   print(paste0('---------obj.mix.',func.name, '---------' ))
   print(exprs(res[[paste0('tour',test)]][[paste0("obj.mix.",func.name)]])[1:size,])
 }
-
-# nCond = sample(c(2:5),1)
-# nRep = sample(c(2:4),1)
-# interC = sample(c(0,1),1)
-# intraC = sample(c(0,1),1)
-# fullRandom = sample(c(0,1),1)
