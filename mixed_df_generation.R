@@ -16,21 +16,15 @@ IntroduceMEC <- function(qData, condition, nbMEC, verbose=FALSE){
   n <- nbMEC
   conds <- unique(condition)
   conds <- sample(conds,length(conds))
-  print(n)
-  print(condition)
-  print(conds)
   for (i in 1:length(conds)){
     nSamplesInCond <- length(which(condition==conds[i]))
     nMax.MEC <- floor(n/nSamplesInCond)
-    print(nSamplesInCond)
-    print(nMax.MEC)
     if (nMax.MEC != 0){
       ind <- sample(nrow(qData), sample(nMax.MEC,1))
       qData[ind,which(condition==conds[i])] <- NA
       n <- n - length(ind)*nSamplesInCond
     }
   }
-  print("END")
   return(qData)
 }
 
@@ -158,7 +152,7 @@ mix_dataset_Enora <- function(ll, do.interC = FALSE, do.intraC = FALSE, do.fullR
   qData <- ll$qData
   pData <- ll$pData
   nCond <- length(unique(pData$Condition))
-  
+  interC <- intraC <- fullRandom <- FALSE
   if (isTRUE(do.interC)){interC <- sample(c(TRUE, FALSE), 1)}
   if (isTRUE(do.intraC)){intraC <- sample(c(TRUE, FALSE), 1)}
   if (isTRUE(do.fullRandom)){fullRandom <- sample(c(TRUE, FALSE), 1)}
@@ -347,7 +341,7 @@ test_impute_functions <- function(obj.original, obj.mixed){
       {# execution de la fonction d'imputation a tester
         obj.original.imputed <- obj.original
         tmp.original.imputed <- do.call(FUN[i],ll_params_original[[i]])
-        if (class(qData.obj.original.imputed)[1] != 'MSnSet'){
+        if (class(tmp.original.imputed)[1] != 'MSnSet'){
           Biobase::exprs(obj.original.imputed) <- tmp.original.imputed
         } else {
           obj.original.imputed <- tmp.original.imputed
@@ -355,7 +349,7 @@ test_impute_functions <- function(obj.original, obj.mixed){
         
         obj.mixed.imputed <- obj.mixed
         tmp.mixed.imputed <- do.call(FUN[i],ll_params_mixed[[i]])
-        if (class(qData.obj.mixed.imputed)[1] != 'MSnSet'){
+        if (class(tmp.mixed.imputed)[1] != 'MSnSet'){
           Biobase::exprs(obj.mixed.imputed) <- tmp.mixed.imputed
         } else {
           obj.mixed.imputed <- tmp.mixed.imputed
@@ -406,9 +400,9 @@ test_impute_functions <- function(obj.original, obj.mixed){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0, size = 100)
+##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.2, size = 1000)
 ##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
-##' res <- test_imputation(nTest = 5,genDatasetArgs , mixDatasetArgs)
+##' res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
 test_imputation <- function(nTest = 5, genDatasetArgs=list(), mixDatasetArgs=list()) {
   
   res <- list()
