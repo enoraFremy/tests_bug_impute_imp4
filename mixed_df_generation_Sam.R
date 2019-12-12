@@ -61,9 +61,13 @@ IntroducePOV <- function(qData, condition, nbPOV, verbose=FALSE){
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
 ##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
-GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nRep = FALSE,
-                                  prop.MV = 0.2, prop.MEC=0.3, prop.POV=0.7,size = 100){
+GenerateRandomDataset <- function(params){
+  
   qData <- pData <- NULL
+  for(i in 1:length(params)){
+    assign(names(params[i]), params[[i]])    
+  }
+  
   if (prop.MV==0 && (1 != (prop.MEC + prop.POV))){
     warning("The sum of probability of POV and MEC missing values must be equal to 1.")
     return(NULL)
@@ -74,7 +78,7 @@ GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nR
     nRep <- nRep
   } else {
     nbCond = sample(c(2:nbCond),1)
-    nRep = sample(c(1:nRep),1)
+    nRep = sample(c(2:nRep),1)
   }
   
   interC = sample(c(0,1),1)
@@ -147,12 +151,23 @@ GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nR
 ##' @examples
 ##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
 ##' ll.mixed <- mix_dataset_Enora(ll, do.interC = TRUE, do.intraC = TRUE, do.fullRandom = TRUE)
-mix_dataset_Enora <- function(ll, do.interC = FALSE, do.intraC = FALSE, do.fullRandom = FALSE){
+mix_dataset_Enora <- function(ll, params){
+  
+  # print(params)
+  # print(unlist(params))
+   for(i in 1:length(params)){
+    assign(names(params[i]), params[[i]])    
+     }
+  # print(do.interC)
+  # print(do.intraC)
+  # print(do.fullRandom)
+  # 
+  
   
   qData <- ll$qData
   pData <- ll$pData
   nCond <- length(unique(pData$Condition))
-  interC <- intraC <- fullRandom <- FALSE
+  interC <- intraC <- fullRandom <- 0
   if (isTRUE(do.interC)){interC <- sample(c(TRUE, FALSE), 1)}
   if (isTRUE(do.intraC)){intraC <- sample(c(TRUE, FALSE), 1)}
   if (isTRUE(do.fullRandom)){fullRandom <- sample(c(TRUE, FALSE), 1)}
@@ -328,13 +343,13 @@ test_impute_functions <- function(obj.original, obj.mixed){
   df_list <- list()
   df_list$obj.original <- obj.original
   df_list$obj.mixed <- obj.mixed
-  FUN <- "wrapper.dapar.impute.mi"
+  FUN <- "wrapper.impute.slsa"
   print(paste0("\nTest de la fonction : ", FUN))
   
   tryCatch(
       {# execution de la fonction d'imputation a tester
         obj.original.imputed <- obj.original
-        tmp.original.imputed <- do.call(FUN,list(obj.original,nb.iter = 1, lapala = FALSE, progress.bar = FALSE))
+        tmp.original.imputed <- do.call(FUN,list(obj.original))
          if (class(tmp.original.imputed)[1] != 'MSnSet'){
           Biobase::exprs(obj.original.imputed) <- tmp.original.imputed
         } else {
@@ -342,12 +357,21 @@ test_impute_functions <- function(obj.original, obj.mixed){
         }
         
         obj.mixed.imputed <- obj.mixed
-        tmp.mixed.imputed <- do.call(FUN,list(obj.mixed,nb.iter = 1, lapala = FALSE, progress.bar = FALSE))
+        tmp.mixed.imputed <- do.call(FUN,list(obj.mixed))
         if (class(tmp.mixed.imputed)[1] != 'MSnSet'){
           Biobase::exprs(obj.mixed.imputed) <- tmp.mixed.imputed
         } else {
           obj.mixed.imputed <- tmp.mixed.imputed
         }
+        
+        
+        # stocker les resultats d'imputation de orginal et mixed pour chaque methode
+        
+        method = paste0("obj.ori.",FUN)
+        df_list[[method]] <- obj.original.imputed
+        method = paste0("obj.mix.",FUN)
+        df_list[[method]] <- obj.mixed.imputed
+        
         
         # tri des colonnes du dataset melange suivant l'ordre des 
         # colonnes du dataset original
@@ -356,12 +380,6 @@ test_impute_functions <- function(obj.original, obj.mixed){
         tmp.pData <- Biobase::pData(obj.mixed.imputed)[original.order,]
         obj.mixed.imputed <- CreateMinimalistMSnset(list(qData=tmp.qData, pData=tmp.pData))
 
-        # stocker les resultats d'imputation de orginal et mixed pour chaque methode
-        
-        method = paste0("obj.ori.",FUN)
-        df_list[[method]] <- obj.original.imputed
-        method = paste0("obj.mix.",FUN)
-        df_list[[method]] <- obj.mixed.imputed
         
         # test de comparaison
         expect_equal(Biobase::exprs(obj.original.imputed), Biobase::exprs(obj.mixed.imputed), tolerance=1)
@@ -394,19 +412,18 @@ test_impute_functions <- function(obj.original, obj.mixed){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.2, size = 1000)
+##' genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
 ##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
 ##' res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
-test_imputation <- function(nTest = 5, genDatasetArgs=list(), mixDatasetArgs=list()) {
-  
-  res <- list()
+test_imputation <- function(nTest = 5, genDatasetArgs, mixDatasetArgs) {
+   res <- list()
   
   for (i in 1:nTest) {
     
     print(paste0("#######--------------------------- TEST ", i, " ---------------------------------#######"))
     
     # 1 - generation qData et pData
-    ll.original <- do.call("GenerateRandomDataset", genDatasetArgs)
+    ll.original <- do.call("GenerateRandomDataset", list(genDatasetArgs))
     
     # 2 - etape de melange
     ll.mixed <- do.call("mix_dataset_Enora",list(ll.original,mixDatasetArgs))
@@ -426,17 +443,21 @@ test_imputation <- function(nTest = 5, genDatasetArgs=list(), mixDatasetArgs=lis
 
 
 
-
+listErreurs <- function(res){
+  
+  for (i in 1:length(res)){
+    print(paste0('iteration ', i, ' : ', names(res[[paste0('tour', i)]])))
+  }
+}
 # 
 # res <- test_imputation(3,2,100,F,0,1,0,5)
 # summary(res)
-toto <- function(test, size, func.name){
-  print(paste0('---------obj.original---------' ))
-  print(exprs(res[[paste0('tour',test)]]$obj.original)[1:size,])
-  print(paste0('---------obj.mixed---------' ))
-  print(exprs(res[[paste0('tour',test)]]$obj.mixed)[1:size,])
-  print(paste0('---------obj.ori.',func.name, '---------' ))
-  print(exprs(res[[paste0('tour',test)]][[paste0("obj.ori.",func.name)]])[1:size,])
-  print(paste0('---------obj.mix.',func.name, '---------' ))
-  print(exprs(res[[paste0('tour',test)]][[paste0("obj.mix.",func.name)]])[1:size,])
+showDatasets <- function(res, tour, size){
+  
+  data <- res[[paste0('tour', tour)]]
+  for (i in 1:length(names(data))){
+    print(paste0('---------',names(data)[i] ,'---------' ))
+    print(exprs(data[[i]])[1:size,])
+  }
+
 }
