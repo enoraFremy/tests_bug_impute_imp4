@@ -80,14 +80,7 @@ GenerateRandomDataset <- function(params){
     nbCond = sample(c(2:nbCond),1)
     nRep = sample(c(2:nRep),1)
   }
-  
-  interC = sample(c(0,1),1)
-  intraC = sample(c(0,1),1)
-  fullRandom = sample(c(0,1),1)
-  
-  cat("\n Caracteristiques du dataset :\n
-        *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
-  
+ 
   
   #creation dataset sans missing values
   base <- LETTERS[1:nbCond]
@@ -422,9 +415,11 @@ test_imputation <- function(nTest = 5, genDatasetArgs, mixDatasetArgs) {
     
     print(paste0("#######--------------------------- TEST ", i, " ---------------------------------#######"))
     
+    
+    
     # 1 - generation qData et pData
     ll.original <- do.call("GenerateRandomDataset", list(genDatasetArgs))
-    
+    print(unlist(genDatasetArgs))
     # 2 - etape de melange
     ll.mixed <- do.call("mix_dataset_Enora",list(ll.original,mixDatasetArgs))
    
