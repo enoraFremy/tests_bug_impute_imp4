@@ -90,7 +90,7 @@ GenerateRandomDataset <- function(params){
     sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep)))
     
   } else {
-    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(1:max(nRep),1 ))))
+    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(2:max(nRep),1))))
   }
   
   
@@ -287,23 +287,23 @@ GetListFuncs <- function(obj=NULL){
   ll <- NULL
   if (is.null(obj)) {
     ##liste des fonctions a tester
-    ll <- c("wrapper.dapar.impute.mi",
-            "wrapper.impute.mle",
-            "wrapper.impute.slsa",
-            "wrapper.impute.detQuant",
-            "wrapper.impute.pa",
-            "wrapper.impute.fixedValue",
-            "wrapper.impute.KNN"
+    ll <- c(#"wrapper.dapar.impute.mi"#,
+            #"wrapper.impute.mle",
+            #"wrapper.impute.slsa",
+            #"wrapper.impute.detQuant",
+            "wrapper.impute.pa"#,
+            #"wrapper.impute.fixedValue"#,
+            #"wrapper.impute.KNN"
             
     ) }
   else {
-    ll <- list(list(obj,nb.iter = 1, progress.bar = FALSE),
-               list(obj),
-               list(obj),
-               list(obj,qval=0.025, factor=1),
-               list(obj,q.min = 0.025),
-               list(obj,fixVal=0),
-               list(obj,K=10)
+    ll <- list(#list(obj,nb.iter = 1, progress.bar = FALSE)#,
+               #list(obj),
+               #list(obj),
+               #list(obj,qval=0.025, factor=1),
+               list(obj,q.min = 0.025)#,
+               #list(obj,fixVal=0)#,
+               #list(obj,K=10)
     )
   }
   return(ll)
@@ -380,9 +380,11 @@ test_impute_functions <- function(obj.original, obj.mixed){
         
       },
       warning = function(w) {
-        #message(w)
+        message(w)
         },
-      error = function(e) {message(e)},
+      error = function(e) {
+        message(e)
+        },
       finally = {}
     )
     
@@ -438,8 +440,7 @@ test_imputation <- function(nTest = 5, genDatasetArgs, mixDatasetArgs) {
 }
 
 
-
-showDatasets <- function(res, tour, size){
+showDatasets <- function(res, tour,  size){
   
   data <- res[[paste0('tour', tour)]]
   for (i in 1:length(names(data))){
@@ -449,8 +450,9 @@ showDatasets <- function(res, tour, size){
   
 }
 
-genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=FALSE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
-mixDatasetArgs <- list(do.interC=FALSE, do.intraC=FALSE, do.fullRandom=TRUE)
-res <- test_imputation(nTest = 5,genDatasetArgs , mixDatasetArgs)
+genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
+mixDatasetArgs <- list(do.interC=TRUE, do.intraC=FALSE, do.fullRandom=FALSE)
+res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
 
-showDatasets(res,2,5)
+showDatasets(res,12,10)
+summary(res)
