@@ -2,15 +2,15 @@ library(DAPAR)
 library(DAPARdata)
 library(imp4p)
 library(testthat)
-
+library(MSnbase)
 
 
 
 IntroduceMEC <- function(qData, condition, nbMEC, verbose=FALSE){
   if (isTRUE(verbose)) {
     if (nbMEC == 0){
-    warning("nbMEC = 0 : No MEC have been introduced")
-    return(qData)
+      warning("nbMEC = 0 : No MEC have been introduced")
+      return(qData)
     }
   }
   n <- nbMEC
@@ -50,6 +50,7 @@ IntroducePOV <- function(qData, condition, nbPOV, verbose=FALSE){
 
 
 
+
 ##' This function is xxxxxx
 ##'
 ##' @title xxxxxx
@@ -61,9 +62,13 @@ IntroducePOV <- function(qData, condition, nbPOV, verbose=FALSE){
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
 ##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
-GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nRep = FALSE,
-                                  prop.MV = 0.2, prop.MEC=0.3, prop.POV=0.7,size = 100){
+GenerateRandomDataset <- function(params){
+  
   qData <- pData <- NULL
+  for(i in 1:length(params)){
+    assign(names(params[i]), params[[i]])    
+  }
+  
   if (prop.MV==0 && (1 != (prop.MEC + prop.POV))){
     warning("The sum of probability of POV and MEC missing values must be equal to 1.")
     return(NULL)
@@ -74,15 +79,8 @@ GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nR
     nRep <- nRep
   } else {
     nbCond = sample(c(2:nbCond),1)
-    nRep = sample(c(1:nRep),1)
+    nRep = sample(c(2:nRep),1)
   }
-  
-  interC = sample(c(0,1),1)
-  intraC = sample(c(0,1),1)
-  fullRandom = sample(c(0,1),1)
-  
-  cat("\n Caracteristiques du dataset :\n
-        *** nCond: ",nbCond, ", nRep: ", nRep, ", interC: ", interC, ", intraC: ",intraC, ", fullRandom: ",fullRandom, " ***\n")
   
   
   #creation dataset sans missing values
@@ -126,13 +124,14 @@ GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nR
   #introduction des MEC
   print("Introdution of MEC MV")
   qData <- IntroduceMEC(qData, condition, nb.MEC)
-
+  
   #introduction des POV
   print("Introdution of POV MV")
   qData <- IntroducePOV(qData, condition, nb.POV)
- 
+  
   return (list(qData=qData, pData=pData))
 }
+
 
 
 ##' This function is xxxxxx
@@ -147,12 +146,23 @@ GenerateRandomDataset <- function(nbCond, nRep, fixedDesign = FALSE, mismatch.nR
 ##' @examples
 ##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
 ##' ll.mixed <- mix_dataset_Enora(ll, do.interC = TRUE, do.intraC = TRUE, do.fullRandom = TRUE)
-mix_dataset_Enora <- function(ll, do.interC = FALSE, do.intraC = FALSE, do.fullRandom = FALSE){
+mix_dataset_Enora <- function(ll, params){
+  
+  # print(params)
+  # print(unlist(params))
+  for(i in 1:length(params)){
+    assign(names(params[i]), params[[i]])    
+  }
+  # print(do.interC)
+  # print(do.intraC)
+  # print(do.fullRandom)
+  # 
+  
   
   qData <- ll$qData
   pData <- ll$pData
   nCond <- length(unique(pData$Condition))
-  interC <- intraC <- fullRandom <- FALSE
+  interC <- intraC <- fullRandom <- 0
   if (isTRUE(do.interC)){interC <- sample(c(TRUE, FALSE), 1)}
   if (isTRUE(do.intraC)){intraC <- sample(c(TRUE, FALSE), 1)}
   if (isTRUE(do.fullRandom)){fullRandom <- sample(c(TRUE, FALSE), 1)}
@@ -182,7 +192,7 @@ mix_dataset_Enora <- function(ll, do.interC = FALSE, do.intraC = FALSE, do.fullR
         #print(i)
         #i=1
         new.order <- c(new.order,sample(intraC.list[[i]]))
-         }
+      }
       qData <- qData[,new.order]
       pData <- pData[new.order,]
     }
@@ -300,10 +310,6 @@ GetListFuncs <- function(obj=NULL){
 }
 
 
-
-
-
-
 ##Teste les fonctions d'imputation sur 2 datasets
 ##' This function is xxxxxx
 ##'
@@ -313,7 +319,7 @@ GetListFuncs <- function(obj=NULL){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0, size = 100)
+##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=FALSE, prop.MV = 0.2, size = 100)
 ##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
 ##' res <- test_imputation(nTest = 5,genDatasetArgs , mixDatasetArgs)
 ##' ll.original <- do.call("GenerateRandomDataset", genDatasetArgs)
@@ -400,23 +406,24 @@ test_impute_functions <- function(obj.original, obj.mixed){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.2, size = 1000)
+##' genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
 ##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
 ##' res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
-test_imputation <- function(nTest = 5, genDatasetArgs=list(), mixDatasetArgs=list()) {
-  
+test_imputation <- function(nTest = 5, genDatasetArgs, mixDatasetArgs) {
   res <- list()
   
   for (i in 1:nTest) {
     
     print(paste0("#######--------------------------- TEST ", i, " ---------------------------------#######"))
     
-    # 1 - generation qData et pData
-    ll.original <- do.call("GenerateRandomDataset", genDatasetArgs)
     
+    
+    # 1 - generation qData et pData
+    ll.original <- do.call("GenerateRandomDataset", list(genDatasetArgs))
+    print(unlist(genDatasetArgs))
     # 2 - etape de melange
     ll.mixed <- do.call("mix_dataset_Enora",list(ll.original,mixDatasetArgs))
-   
+    print(unlist(mixDatasetArgs))
     # 3 - mise sous forme de MSnset
     obj.original <- CreateMinimalistMSnset(ll.original)
     obj.mixed <- CreateMinimalistMSnset(ll.mixed)
@@ -432,17 +439,18 @@ test_imputation <- function(nTest = 5, genDatasetArgs=list(), mixDatasetArgs=lis
 
 
 
-
-# 
-# res <- test_imputation(3,2,100,F,0,1,0,5)
-# summary(res)
-toto <- function(test, size, func.name){
-  print(paste0('---------obj.original---------' ))
-  print(exprs(res[[paste0('tour',test)]]$obj.original)[1:size,])
-  print(paste0('---------obj.mixed---------' ))
-  print(exprs(res[[paste0('tour',test)]]$obj.mixed)[1:size,])
-  print(paste0('---------obj.ori.',func.name, '---------' ))
-  print(exprs(res[[paste0('tour',test)]][[paste0("obj.ori.",func.name)]])[1:size,])
-  print(paste0('---------obj.mix.',func.name, '---------' ))
-  print(exprs(res[[paste0('tour',test)]][[paste0("obj.mix.",func.name)]])[1:size,])
+showDatasets <- function(res, tour, size){
+  
+  data <- res[[paste0('tour', tour)]]
+  for (i in 1:length(names(data))){
+    print(paste0('---------',names(data)[i] ,'---------' ))
+    print(exprs(data[[i]])[1:size,])
+  }
+  
 }
+
+genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=FALSE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
+mixDatasetArgs <- list(do.interC=FALSE, do.intraC=FALSE, do.fullRandom=TRUE)
+res <- test_imputation(nTest = 5,genDatasetArgs , mixDatasetArgs)
+
+showDatasets(res,2,5)
