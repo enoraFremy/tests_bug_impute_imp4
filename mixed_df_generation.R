@@ -61,7 +61,7 @@ IntroducePOV <- function(qData, condition, nbPOV, verbose=FALSE){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0)
+##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0.2)
 GenerateRandomDataset <- function(params){
   
   qData <- pData <- NULL
@@ -163,9 +163,12 @@ mix_dataset_Enora <- function(ll, params){
   pData <- ll$pData
   nCond <- length(unique(pData$Condition))
   interC <- intraC <- fullRandom <- 0
-  if (isTRUE(do.interC)){interC <- sample(c(TRUE, FALSE), 1)}
-  if (isTRUE(do.intraC)){intraC <- sample(c(TRUE, FALSE), 1)}
-  if (isTRUE(do.fullRandom)){fullRandom <- sample(c(TRUE, FALSE), 1)}
+  # if (isTRUE(do.interC)){interC <- sample(c(TRUE, FALSE), 1)}
+  # if (isTRUE(do.intraC)){intraC <- sample(c(TRUE, FALSE), 1)}
+  # if (isTRUE(do.fullRandom)){fullRandom <- sample(c(TRUE, FALSE), 1)}
+  if (isTRUE(do.interC)){interC <- TRUE}
+  if (isTRUE(do.intraC)){intraC <- TRUE}
+  if (isTRUE(do.fullRandom)){fullRandom <- TRUE}
   #### Mix columns qData ####
   
   if (fullRandom == 0) {
@@ -174,7 +177,9 @@ mix_dataset_Enora <- function(ll, params){
       
       print("conditions shuffled, replicates unchanged")
       interC.list <- c(1:ncol(qData))
-      interC.list <- split(interC.list, sort(interC.list%%nCond))
+      
+      interC.list <- split(interC.list, rep(1:nCond,table(pData$Condition))) # general with mismatch.nRep FALSE or TRUE
+      #interC.list <- split(interC.list, sort(interC.list%%nCond)) # for mismatch.nRep == FALSE
       new.interC.list <- unlist(sample(interC.list,nCond), use.names = F)
       qData <- qData[,new.interC.list]
       pData <- pData[new.interC.list,]
@@ -184,7 +189,8 @@ mix_dataset_Enora <- function(ll, params){
       
       print("conditions unchanged, replicates shuffled")
       intraC.list <- c(1:ncol(qData))
-      intraC.list <- split(intraC.list, sort(intraC.list%%nCond))
+      intraC.list <- split(intraC.list, rep(1:nCond,table(pData$Condition)))
+      #intraC.list <- split(intraC.list, sort(intraC.list%%nCond))
       
       new.order <- vector()
       
@@ -200,19 +206,20 @@ mix_dataset_Enora <- function(ll, params){
     if (interC == 1 && intraC == 1) { 
       
       print("conditions and replicates shuffled")
-      er.ac <- c(1:ncol(qData))
-      er.ac <- split(er.ac, sort(er.ac%%nCond))
+      er.ra <- c(1:ncol(qData))
+      er.ra <- split(er.ra, rep(1:nCond,table(pData$Condition)))
+      #er.ra <- split(er.ra, sort(er.ra%%nCond))
       new.order <- vector()
       
       for (i in (1:nCond) ) {
         #print(i)
         #i=1
-        new.order <- c(new.order,sample(er.ac[[i]]))
+        new.order <- c(new.order,sample(er.ra[[i]]))
         
       }
       qData <- qData[,new.order]
       pData <- pData[new.order,]
-      new.interC.list <- unlist(sample(er.ac,nCond), use.names = F)
+      new.interC.list <- unlist(sample(er.ra,nCond), use.names = F)
       qData <- qData[,new.interC.list]
       pData <- pData[new.interC.list,]
       
@@ -288,20 +295,20 @@ GetListFuncs <- function(obj=NULL){
   if (is.null(obj)) {
     ##liste des fonctions a tester
     ll <- c(#"wrapper.dapar.impute.mi"#,
-            #"wrapper.impute.mle",
+            "wrapper.impute.mle"#,
             #"wrapper.impute.slsa",
             #"wrapper.impute.detQuant",
-            "wrapper.impute.pa"#,
+            #"wrapper.impute.pa"#,
             #"wrapper.impute.fixedValue"#,
             #"wrapper.impute.KNN"
             
     ) }
   else {
     ll <- list(#list(obj,nb.iter = 1, progress.bar = FALSE)#,
-               #list(obj),
+               list(obj)#,
                #list(obj),
                #list(obj,qval=0.025, factor=1),
-               list(obj,q.min = 0.025)#,
+               #list(obj,q.min = 0.025)#,
                #list(obj,fixVal=0)#,
                #list(obj,K=10)
     )
@@ -445,7 +452,7 @@ showDatasets <- function(res, tour,  size){
   data <- res[[paste0('tour', tour)]]
   for (i in 1:length(names(data))){
     print(paste0('---------',names(data)[i] ,'---------' ))
-    print(exprs(data[[i]])[1:size,])
+    print(exprs(data[[i]])[size,])
   }
   
 }
@@ -454,5 +461,6 @@ genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=TRUE,
 mixDatasetArgs <- list(do.interC=TRUE, do.intraC=FALSE, do.fullRandom=FALSE)
 res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
 
-showDatasets(res,12,10)
 summary(res)
+showDatasets(res,1,10:20)
+
