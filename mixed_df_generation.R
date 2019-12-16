@@ -2,7 +2,7 @@ library(DAPAR)
 library(DAPARdata)
 library(imp4p)
 library(testthat)
-library(MSnbase)
+#library(MSnbase)
 
 
 
@@ -61,7 +61,7 @@ IntroducePOV <- function(qData, condition, nbPOV, verbose=FALSE){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0.2)
+##' ll <- GenerateRandomDataset(nbCond=3, nRep=3, mismatch.nRep =TRUE, prop.MV=0.2,size=100)
 GenerateRandomDataset <- function(params){
   
   qData <- pData <- NULL
@@ -74,12 +74,13 @@ GenerateRandomDataset <- function(params){
     return(NULL)
   }
   
-  if (isTRUE(fixedDesign)){
-    nbCond <- nbCond
-    nRep <- nRep
-  } else {
-    nbCond = sample(c(2:nbCond),1)
-    nRep = sample(c(2:nRep),1)
+  
+  nbCond <- nbCond
+  nRep <- nRep
+  
+  if (nRep==2){ # eviter les conditions a un seul replicat
+    print("Only two replicats, mismatch.nRep set to FALSE")
+    mismatch.nRep == FALSE
   }
   
   
@@ -90,7 +91,8 @@ GenerateRandomDataset <- function(params){
     sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep)))
     
   } else {
-    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(2:max(nRep),1))))
+    sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:sample(2:nRep,1))))
+    
   }
   
   
@@ -195,9 +197,10 @@ mix_dataset_Enora <- function(ll, params){
       new.order <- vector()
       
       for (i in (1:nCond) ) {
+        
         #print(i)
-        #i=1
-        new.order <- c(new.order,sample(intraC.list[[i]]))
+        #i=2
+        new.order <- c(new.order,sample(intraC.list[[i]],length(intraC.list[[i]])))
       }
       qData <- qData[,new.order]
       pData <- pData[new.order,]
@@ -294,23 +297,23 @@ GetListFuncs <- function(obj=NULL){
   ll <- NULL
   if (is.null(obj)) {
     ##liste des fonctions a tester
-    ll <- c(#"wrapper.dapar.impute.mi"#,
-            "wrapper.impute.mle"#,
-            #"wrapper.impute.slsa",
-            #"wrapper.impute.detQuant",
-            #"wrapper.impute.pa"#,
-            #"wrapper.impute.fixedValue"#,
-            #"wrapper.impute.KNN"
+    ll <- c("wrapper.dapar.impute.mi",
+            "wrapper.impute.mle",
+            "wrapper.impute.slsa",
+            "wrapper.impute.detQuant",
+            "wrapper.impute.pa",
+            "wrapper.impute.fixedValue",
+            "wrapper.impute.KNN"
             
     ) }
   else {
-    ll <- list(#list(obj,nb.iter = 1, progress.bar = FALSE)#,
-               list(obj)#,
-               #list(obj),
-               #list(obj,qval=0.025, factor=1),
-               #list(obj,q.min = 0.025)#,
-               #list(obj,fixVal=0)#,
-               #list(obj,K=10)
+    ll <- list(list(obj,nb.iter = 1, progress.bar = FALSE),
+               list(obj),
+               list(obj),
+               list(obj,qval=0.025, factor=1),
+               list(obj,q.min = 0.025),
+               list(obj,fixVal=0),
+               list(obj,K=10)
     )
   }
   return(ll)
@@ -415,7 +418,7 @@ test_impute_functions <- function(obj.original, obj.mixed){
 ##' @return A list of two items : xxxxx
 ##' @author Enora Fremy, Samuel Wieczorek
 ##' @examples
-##' genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
+##' genDatasetArgs <- list(nbCond=3, nRep=3,mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
 ##' mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
 ##' res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
 test_imputation <- function(nTest = 5, genDatasetArgs, mixDatasetArgs) {
@@ -457,10 +460,25 @@ showDatasets <- function(res, tour,  size){
   
 }
 
-genDatasetArgs <- list(nbCond=3, nRep=3, fixedDesign = FALSE,mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
-mixDatasetArgs <- list(do.interC=TRUE, do.intraC=FALSE, do.fullRandom=FALSE)
+genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.2,  prop.MEC=0.3, prop.POV=0.7,size = 100)
+mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
 res <- test_imputation(nTest = 20,genDatasetArgs , mixDatasetArgs)
 
-summary(res)
-showDatasets(res,1,10:20)
+# où sont les NA ?
+# exprs(res$tour1$obj.original)[!complete.cases(exprs(res$tour1$obj.original))]
 
+summary(res)
+showDatasets(res,18,90:100)
+
+# Imputation complete ?
+# method = c("wrapper.dapar.impute.mi","wrapper.impute.mle","wrapper.impute.slsa","wrapper.impute.detQuant","wrapper.impute.pa",
+#            "wrapper.impute.fixedValue","wrapper.impute.KNN")
+method="wrapper.impute.mle"
+tour=18
+data <- res[[paste0("tour",tour)]][[paste0("obj.ori.",method)]]
+(exprs(data))[!complete.cases(exprs(data)),]
+data <- res[[paste0("tour",tour)]][[paste0("obj.mix.",method)]]
+(exprs(data))[!complete.cases(exprs(data)),]
+
+exprs(res$tour1$obj.ori.wrapper.impute.pa)[!complete.cases(exprs(res$tour1$obj.ori.wrapper.impute.pa)),]
+exprs(res$tour1$obj.mix.wrapper.impute.pa)[!complete.cases(exprs(res$tour1$obj.mix.wrapper.impute.pa)),]
