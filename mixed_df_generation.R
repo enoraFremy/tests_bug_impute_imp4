@@ -10,6 +10,7 @@ library(DAPARdata)
 library(imp4p)
 library(testthat)
 
+## --------------------------------------------------------------- ##
 # correction codes mle qd nb de rep different par condition. Attention à levels
 # wrapper.impute.mle.toto <- function(obj){
 #   cond <- as.factor(Biobase::pData(obj)$Condition)
@@ -46,8 +47,12 @@ library(testthat)
 #   }
 #   return(tab_imp)
 # }
-
 ## --------------------------------------------------------------- ##
+
+
+#------------------------------------------------------------
+# Fonctions
+#------------------------------------------------------------
 
 IntroduceMEC <- function(qData, condition, nbMEC, verbose=FALSE){
   if (isTRUE(verbose)) {
@@ -357,7 +362,7 @@ realData <- function(data,plusCdt,plusRep){
       coord_plusCol <- split(c(1:(ncol(plusCol))), seq )
       plusCol[,coord_plusCol[[i]]] <- jitter(qData[,unlist(sample(cdtDuplicated,1 ))],2)
     }
-    
+    qData <- cbind(qData,plusCol)
     
     # a pData
     plusRow <- as.data.frame(matrix(nrow = nRep.i*plusCdt, ncol = ncol(pData)))
@@ -365,11 +370,9 @@ realData <- function(data,plusCdt,plusRep){
     plusRow$Condition <- paste0("condition",rep(c(1:plusCdt), each = nRep.i))
     pData <- rbind(pData,plusRow)
     
-    
-    
   }
   
-  qData <- cbind(qData,plusCol)
+  
   base <- LETTERS[1:nbCond.f]
   sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep.i)))
   colnames(qData) <- sample.names
@@ -436,17 +439,13 @@ realData <- function(data,plusCdt,plusRep){
   }
   
   pData$Bio.Rep <- 1:nrow(pData)
+  rownames(pData) <- colnames(qData)
   
-  return (list(qData=qData, pData=pData))
+  ll <- list(qData=qData, pData=pData)
+  ll <- CreateMinimalistMSnset(ll)
+  return ( ll )
   
 }
-
-data("Exp1_R25_pept")
-
-ll <- realData(Exp1_R25_pept,3,5)
-names(ll$qData)
-
-## --------------------------------------------------------------- ##
 
 
 ## Noms et parametres des fonctions d'imputation a tester
@@ -636,16 +635,27 @@ showDatasets <- function(res, tour,  size){
   
 }
 
+
+#------------------------------------------------------------
+# Tests
+#------------------------------------------------------------
+data("Exp1_R25_pept")
+
+ll <- realData(Exp1_R25_pept,0,1)
+colnames(exprs(ll))
+pData(ll)
 #genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.4,  prop.MEC=0.3, prop.POV=0.7,size = 5000)
+mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=FALSE)
+res.1 <- test_imputation(nTest=1,genDatasetArgs , mixDatasetArgs, realData = T, data = ll)
 mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
-res <- test_imputation(nTest=5,genDatasetArgs , mixDatasetArgs, realData = T, data = Exp1_R25_pept)
+res.2 <- test_imputation(nTest=1,genDatasetArgs , mixDatasetArgs, realData = T, data = ll)
 
 # testS
-summary(res)
-showDatasets(res,2,5:16)
-showDatasets(res,1,20:23)
+summary(res.1)
+showDatasets(res.1,1,5:16)
+showDatasets(res.1,1,20:23)
 
-save(res,file = "res_mi_test2.RData")
+#save(res,file = "res_mi_test2.RData")
 
 # Imputation complete ?
 # method = c("wrapper.dapar.impute.mi","wrapper.impute.mle","wrapper.impute.slsa","wrapper.impute.detQuant","wrapper.impute.pa",
