@@ -1,51 +1,53 @@
 #library(installr)
 #uninstall.packages("DAPAR")
+#uninstall.packages("imp4p")
 
 #install.packages("~/Github/DAPAR_1.19.13.tar.gz", repo = NULL, type = "source")
+#install.packages("~/R/imp4p_0.9.tar.gz", repo = NULL, type = "source")
 
 library(DAPAR)
 library(DAPARdata)
 library(imp4p)
 library(testthat)
 
+# correction codes mle qd nb de rep different par condition. Attention à levels
+# wrapper.impute.mle.toto <- function(obj){
+#   cond <- as.factor(Biobase::pData(obj)$Condition)
+#   
+#   res <- impute.mle.toto(Biobase::exprs(obj), conditions=cond)
+#   
+#   Biobase::exprs(obj) <-res
+#   return (obj)
+# }
+# 
+# 
+# impute.mle.toto <- function (tab, conditions) 
+# {
+#   tab_imp = as.matrix(tab)
+#   nb_cond = length(levels(conditions))
+#   nb_rep = rep(0, nb_cond)
+#   k = 1
+#   for (n in 1:nb_cond) {
+#     nb_rep[n] = sum((conditions == unique(conditions)[n]))
+#     #xincomplete = as.matrix(tab[, (k:(k + nb_rep[n] - 1))])
+#     indices <- which((conditions == unique(conditions)[n]))
+#     xincomplete = as.matrix(tab[, indices])
+#     nbna = apply(xincomplete, 1, function(x) {
+#       sum(is.na(x))
+#     })
+#     xincomplete1 = xincomplete[which(nbna != nb_rep[n]), 
+#                                ]
+#     s <- prelim.norm(xincomplete1)
+#     thetahat <- em.norm(s, showits = FALSE)
+#     rngseed(1234567)
+#     xcomplete1 <- imp.norm(s, thetahat, xincomplete1)
+#     tab_imp[which(nbna != nb_rep[n]), indices] = xcomplete1
+#     # k = k + nb_rep[n]
+#   }
+#   return(tab_imp)
+# }
 
-
-data("Exp1_R25_pept")
-data("Exp1_R25_prot")
-
-data=Exp1_R25_prot
-plusCdt=2
-plusRep=0
-
-realData <- function(data,plusCdt,plusRep){
-  
-  qData <- exprs(data)
-  pData <- pData(data)
-  nbCond.i <- length(unique(pData$Condition))
-  nRep.i <- nrow(pData) / nbCond.i
-  
-  nbCond.f <- nbCond.i + plusCdt
-  nRep.f <- nRep.i + plusRep
-  
-  
-  plusCol <- matrix(nrow = nrow(qData), ncol = nbCond.i*plusCdt)
-  plusCol <- jitter(qData[,unlist(sample(split(c(1:ncol(qData)), rep(1:nbCond.i,table(pData$Condition))),1 ))],2)
-  qData <- cbind(qData,plusCol)
-  
-  plusRow <- as.data.frame(matrix(nrow = nRep.i*plusCdt, ncol = ncol(pData)))
-  colnames(plusRow) <- colnames(pData)
-  plusRow$Condition <- paste0("condition",rep(c(1:plusCdt), each = nRep.f))
-  pData <- rbind(pData,plusRow)
-  
-  base <- LETTERS[1:nbCond.f]
-  sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep.i)))
-  
-  colnames(qData) <- sample.names
-  pData$Sample.name <- sample.names
-  pData$Bio.Rep <- c(1:nrow(pData))
-  
-  
-}
+## --------------------------------------------------------------- ##
 
 IntroduceMEC <- function(qData, condition, nbMEC, verbose=FALSE){
   if (isTRUE(verbose)) {
@@ -321,6 +323,108 @@ CreateMinimalistMSnset <- function(ll){
 }
 
 
+## --------------------------------------------------------------- ##
+# 1 - ne pas toucher le nb de cdt ou de rep mais pouvoir voir si imputation raccord avec cdt
+data("Exp1_R25_pept")
+qData <- exprs(Exp1_R25_pept)
+pData <- pData(Exp1_R25_pept)
+qData[14,1] <- 50
+ll <- list(qData=qData, pData=pData)
+Exp1_R25_pept <- CreateMinimalistMSnset(ll)
+
+# 2 - rajouter un replicat
+data("Exp1_R25_pept")
+data=Exp1_R25_pept
+qData <- as.data.frame(exprs(data))
+pData <- pData(data)
+nvRep.index <- sample(1:ncol(qData),1)
+qData$Intensity_D_R4 <- jitter(qData[,nvRep.index],2)
+pDataplus <- c("Intensity_D_R4","10fmol","7")
+pData <- rbind(pData,pDataplus)
+rownames(pData) <- pData$Sample.name
+qData[14,1] <- 50
+ll <- list(qData=qData, pData=pData)
+Exp1_R25_pept <- CreateMinimalistMSnset(ll)
+
+# 3 - EN COURS automatisation ajout cdt et/ou rep 
+realData <- function(data,plusCdt,plusRep){
+  data("Exp1_R25_pept")
+  data=Exp1_R25_pept
+  plusCdt=0
+  plusRep=1
+  
+  qData <- exprs(data)
+  pData <- pData(data)
+  nbCond.i <- length(unique(pData$Condition))
+  nRep.i <- nrow(pData) / nbCond.i
+  
+  # ajouter les replicats au hasard
+  if (plusRep>0) {
+    
+    # 1- ajouter autant de col que de replicas voulus
+    plusCol <- as.data.frame(matrix(NA, nrow=nrow(qData), ncol = plusRep))
+    
+    repSup <- sort(sample(1:ncol(qData),plusRep, replace = T) )
+   
+    for (i in 1:length(repSup)) {
+      plusCol[,i] <- jitter(qData[,repSup[i]],2)
+      names(plusCol)[i] <- repSup[i]
+    }
+    
+    # 2 - placer les colonnes au hasard
+    cond <- split(c(1:ncol(qData)), rep(1:nbCond.i,table(pData$Condition)))
+    coord_cdt <- sapply(cond, tail, 1)
+    compt = 0
+    k = 1
+    
+    for (i in 1:length(cond)) { 
+      
+      combien <- sum( (repSup %in% cond[[i]]) , na.rm = TRUE) 
+      
+      if (combien>0) {
+        qData <- cbind(qData, plusCol[,1:combien, drop = F])
+        
+        if (i != length(cond)) {
+          plusCol <- plusCol[,-c((i+j-1):combien), drop = F]
+          qData <- qData[, c( cond[[k]], (ncol(qData)- combien + 1) : ncol(qData)  , cond[[k+1]])]
+        }
+      }
+    }
+    compt = compt + combien 
+  }
+  
+
+
+  
+  
+  # ajouter les condtion
+  nbCond.f <- nbCond.i + plusCdt
+  nRep.f <- nRep.i + plusRep
+  
+  
+  plusCol <- matrix(nrow = nrow(qData), ncol = nRep.i*plusCdt)
+  cdtDuplicated <- split(c(1:ncol(qData)), rep(1:nbCond.i,table(pData$Condition)))
+  plusCol <- jitter(qData[,unlist(sample(cdtDuplicated,1 ))],2)
+  qData <- cbind(qData,plusCol)
+  
+  plusRow <- as.data.frame(matrix(nrow = nRep.i*plusCdt, ncol = ncol(pData)))
+  colnames(plusRow) <- colnames(pData)
+  plusRow$Condition <- paste0("condition",rep(c(1:plusCdt), each = nRep.f))
+  pData <- rbind(pData,plusRow)
+  
+  base <- LETTERS[1:nbCond.f]
+  sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep.i)))
+  
+  colnames(qData) <- sample.names
+  pData$Sample.name <- sample.names
+  pData$Bio.Rep <- c(1:nrow(pData))
+  
+  
+}
+
+## --------------------------------------------------------------- ##
+
+
 ## Noms et parametres des fonctions d'imputation a tester
 ## utilises par do.call
 ##' This function is xxxxxx
@@ -338,9 +442,9 @@ GetListFuncs <- function(obj=NULL){
   ll <- NULL
   if (is.null(obj)) {
     ##liste des fonctions a tester
-    ll <- c(#"wrapper.dapar.impute.mi",
-            "wrapper.impute.mle",
-            "wrapper.impute.slsa"#,
+    ll <- c("wrapper.dapar.impute.mi"#,
+            #"wrapper.impute.mle.toto"#,
+            #"wrapper.impute.slsa"#,
             #"wrapper.impute.detQuant",
             #"wrapper.impute.pa"#,
             #"wrapper.impute.fixedValue",
@@ -348,9 +452,9 @@ GetListFuncs <- function(obj=NULL){
             
     ) }
   else {
-    ll <- list(#list(obj,nb.iter = 1, progress.bar = FALSE),
-               list(obj),
-               list(obj)#,
+    ll <- list(list(obj,nb.iter = 1, progress.bar = FALSE)#,
+               #list(obj)#,
+               #list(obj)#,
                #list(obj,qval=0.025, factor=1),
                #list(obj,q.min = 0.025)#,
                #list(obj,fixVal=0),
@@ -510,18 +614,23 @@ showDatasets <- function(res, tour,  size){
 
 #genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.4,  prop.MEC=0.3, prop.POV=0.7,size = 5000)
 mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
-res <- test_imputation(nTest=10,genDatasetArgs , mixDatasetArgs, realData = T, data = Exp1_R25_pept)
+res <- test_imputation(nTest=5,genDatasetArgs , mixDatasetArgs, realData = T, data = Exp1_R25_pept)
 
 # testS
 summary(res)
-showDatasets(res,1,1:20)
+showDatasets(res,2,5:16)
+showDatasets(res,1,20:23)
+
+save(res,file = "res_mi_test2.RData")
 
 # Imputation complete ?
 # method = c("wrapper.dapar.impute.mi","wrapper.impute.mle","wrapper.impute.slsa","wrapper.impute.detQuant","wrapper.impute.pa",
 #            "wrapper.impute.fixedValue","wrapper.impute.KNN")
-method="wrapper.impute.mle"
+method="wrapper.dapar.impute.mi"
 tour=1
 data <- res[[paste0("tour",tour)]][[paste0("obj.ori.",method)]]
 (exprs(data))[!complete.cases(exprs(data)),]
 data <- res[[paste0("tour",tour)]][[paste0("obj.mix.",method)]]
+(exprs(data))[!complete.cases(exprs(data)),]
+data <- res$tour1$obj.original
 (exprs(data))[!complete.cases(exprs(data)),]
