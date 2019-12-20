@@ -323,104 +323,128 @@ CreateMinimalistMSnset <- function(ll){
 }
 
 
-## --------------------------------------------------------------- ##
-# 1 - ne pas toucher le nb de cdt ou de rep mais pouvoir voir si imputation raccord avec cdt
-data("Exp1_R25_pept")
-qData <- exprs(Exp1_R25_pept)
-pData <- pData(Exp1_R25_pept)
-qData[14,1] <- 50
-ll <- list(qData=qData, pData=pData)
-Exp1_R25_pept <- CreateMinimalistMSnset(ll)
-
-# 2 - rajouter un replicat
-data("Exp1_R25_pept")
-data=Exp1_R25_pept
-qData <- as.data.frame(exprs(data))
-pData <- pData(data)
-nvRep.index <- sample(1:ncol(qData),1)
-qData$Intensity_D_R4 <- jitter(qData[,nvRep.index],2)
-pDataplus <- c("Intensity_D_R4","10fmol","7")
-pData <- rbind(pData,pDataplus)
-rownames(pData) <- pData$Sample.name
-qData[14,1] <- 50
-ll <- list(qData=qData, pData=pData)
-Exp1_R25_pept <- CreateMinimalistMSnset(ll)
-
-# 3 - EN COURS automatisation ajout cdt et/ou rep 
+##' This function generates datasets from DAPARdata with extra conditions and replicates
+##'
+##' @title xxxxxx
+##' @param ll
+##' @param nCond xxxx 
+##' @param xxxxx
+##' @param type xxxxx
+##' @return A list of two items : qData and pData
+##' @author Enora Fremy
+##' @examples
+##' ll <- realData(data = Exp1_R25_pept,plusCdt = 0,plusRep = 1)
 realData <- function(data,plusCdt,plusRep){
-  data("Exp1_R25_pept")
-  data=Exp1_R25_pept
-  plusCdt=0
-  plusRep=1
   
   qData <- exprs(data)
   pData <- pData(data)
   nbCond.i <- length(unique(pData$Condition))
   nRep.i <- nrow(pData) / nbCond.i
   
-  # ajouter les replicats au hasard
-  if (plusRep>0) {
+  nbCond.f <- nbCond.i + plusCdt
+  nRep.f <- nRep.i + plusRep
+  
+  if (plusCdt>0) {
+    print(paste0(plusCdt," condition(s) added..."))
+    # ajouter n condition
     
-    # 1- ajouter autant de col que de replicas voulus
+    # a qData
+    plusCol <- matrix(nrow = nrow(qData), ncol = nRep.i*plusCdt)
+    cdtDuplicated <- split(c(1:ncol(qData)), rep(1:nbCond.i,table(pData$Condition)))
+    for (i in 1:plusCdt) {
+      
+      seq <- rep(1:plusCdt, each = nRep.i)
+      coord_plusCol <- split(c(1:(ncol(plusCol))), seq )
+      plusCol[,coord_plusCol[[i]]] <- jitter(qData[,unlist(sample(cdtDuplicated,1 ))],2)
+    }
+    
+    
+    # a pData
+    plusRow <- as.data.frame(matrix(nrow = nRep.i*plusCdt, ncol = ncol(pData)))
+    colnames(plusRow) <- colnames(pData)
+    plusRow$Condition <- paste0("condition",rep(c(1:plusCdt), each = nRep.i))
+    pData <- rbind(pData,plusRow)
+    
+    
+    
+  }
+  
+  qData <- cbind(qData,plusCol)
+  base <- LETTERS[1:nbCond.f]
+  sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep.i)))
+  colnames(qData) <- sample.names
+  
+  pData$Sample.name <- sample.names
+  pData$Bio.Rep <- 1:nrow(pData)
+
+  # ajouter n replicats (au hasard)
+  if (plusRep>0) {
+    print(paste0(plusRep," replicate(s) added..."))
+    
+    # 1- selectionner autant de col a dupliquer que de replicas voulus
     plusCol <- as.data.frame(matrix(NA, nrow=nrow(qData), ncol = plusRep))
     
     repSup <- sort(sample(1:ncol(qData),plusRep, replace = T) )
-   
+    print(paste0("repSup: ",repSup))
+    
     for (i in 1:length(repSup)) {
       plusCol[,i] <- jitter(qData[,repSup[i]],2)
       names(plusCol)[i] <- repSup[i]
     }
     
-    # 2 - placer les colonnes au hasard
-    cond <- split(c(1:ncol(qData)), rep(1:nbCond.i,table(pData$Condition)))
+    # 2 - placer les colonnes
+    cond <- split(c(1:ncol(qData)), rep(1:nbCond.f,table(pData$Condition)))
     coord_cdt <- sapply(cond, tail, 1)
     compt = 0
-    k = 1
     
-    for (i in 1:length(cond)) { 
-      
+    
+    for (i in 1:length(cond)) {
+      #i=2
       combien <- sum( (repSup %in% cond[[i]]) , na.rm = TRUE) 
       
       if (combien>0) {
         qData <- cbind(qData, plusCol[,1:combien, drop = F])
         
         if (i != length(cond)) {
-          plusCol <- plusCol[,-c((i+j-1):combien), drop = F]
-          qData <- qData[, c( cond[[k]], (ncol(qData)- combien + 1) : ncol(qData)  , cond[[k+1]])]
+          plusCol <- plusCol[,-c(1:combien), drop = F]
+          qData <- qData[, c( 1:(tail(cond[[i]],1)+compt), (ncol(qData)- combien + 1) : ncol(qData)  , (tail(cond[[i]],1)+1+compt) : (ncol(qData)- combien))]
         }
       }
+      compt = compt + combien 
     }
-    compt = compt + combien 
+   
   }
   
-
-
   
+  indices <- which(!grepl("^[A-Z]..",names(qData)))
+  for (i in indices) {
+    #i=4
+    toCorrect <- unlist(strsplit(names(qData)[i-1], "_"))
+    names(qData)[i] <- paste0(toCorrect[1],"_",as.numeric(toCorrect[2])+1)
+  }
   
-  # ajouter les condtion
-  nbCond.f <- nbCond.i + plusCdt
-  nRep.f <- nRep.i + plusRep
-  
-  
-  plusCol <- matrix(nrow = nrow(qData), ncol = nRep.i*plusCdt)
-  cdtDuplicated <- split(c(1:ncol(qData)), rep(1:nbCond.i,table(pData$Condition)))
-  plusCol <- jitter(qData[,unlist(sample(cdtDuplicated,1 ))],2)
-  qData <- cbind(qData,plusCol)
-  
-  plusRow <- as.data.frame(matrix(nrow = nRep.i*plusCdt, ncol = ncol(pData)))
+                                   
+  plusRow <- as.data.frame(matrix(nrow = ncol(qData)-nrow(pData), ncol = ncol(pData)))
   colnames(plusRow) <- colnames(pData)
-  plusRow$Condition <- paste0("condition",rep(c(1:plusCdt), each = nRep.f))
+  plusRow$Sample.name <- setdiff(colnames(qData), pData$Sample.name )
   pData <- rbind(pData,plusRow)
+  pData <- pData[order(pData$Sample.name),]
   
-  base <- LETTERS[1:nbCond.f]
-  sample.names <- unlist(lapply(base, function(x)paste0(x,"_",1:nRep.i)))
+  indices <- which(is.na(pData$Condition))
+  for (i in indices) {
+    pData$Condition[i] <- pData$Condition[i-1]
+  }
   
-  colnames(qData) <- sample.names
-  pData$Sample.name <- sample.names
-  pData$Bio.Rep <- c(1:nrow(pData))
+  pData$Bio.Rep <- 1:nrow(pData)
   
+  return (list(qData=qData, pData=pData))
   
 }
+
+data("Exp1_R25_pept")
+
+ll <- realData(Exp1_R25_pept,3,5)
+names(ll$qData)
 
 ## --------------------------------------------------------------- ##
 
