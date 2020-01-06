@@ -206,7 +206,6 @@ mix_dataset_Enora <- function(ll, params){
   # print(do.interC)
   # print(do.intraC)
   # print(do.fullRandom)
-  # 
   
   
   qData <- ll$qData
@@ -227,8 +226,8 @@ mix_dataset_Enora <- function(ll, params){
       
       print("conditions shuffled, replicates unchanged")
       interC.list <- c(1:ncol(qData))
-      
-      interC.list <- split(interC.list, rep(1:nCond,table(pData$Condition))) # general with mismatch.nRep FALSE or TRUE
+      repl <- rep(1:nCond,table(pData$Condition)[unique(pData$Condition)])
+      interC.list <- split(interC.list, repl) # general with mismatch.nRep FALSE or TRUE
       #interC.list <- split(interC.list, sort(interC.list%%nCond)) # for mismatch.nRep == FALSE
       new.interC.list <- unlist(sample(interC.list,nCond), use.names = F)
       qData <- qData[,new.interC.list]
@@ -239,7 +238,8 @@ mix_dataset_Enora <- function(ll, params){
       
       print("conditions unchanged, replicates shuffled")
       intraC.list <- c(1:ncol(qData))
-      intraC.list <- split(intraC.list, rep(1:nCond,table(pData$Condition)))
+      repl <- rep(1:nCond,table(pData$Condition)[unique(pData$Condition)])
+      intraC.list <- split(intraC.list, repl)
       #intraC.list <- split(intraC.list, sort(intraC.list%%nCond))
       
       new.order <- vector()
@@ -258,7 +258,8 @@ mix_dataset_Enora <- function(ll, params){
       
       print("conditions and replicates shuffled")
       er.ra <- c(1:ncol(qData))
-      er.ra <- split(er.ra, rep(1:nCond,table(pData$Condition)))
+      repl <- rep(1:nCond,table(pData$Condition)[unique(pData$Condition)])
+      er.ra <- split(er.ra, repl)
       #er.ra <- split(er.ra, sort(er.ra%%nCond))
       new.order <- vector()
       
@@ -641,19 +642,29 @@ showDatasets <- function(res, tour,  size){
 #------------------------------------------------------------
 data("Exp1_R25_pept")
 
-ll <- realData(Exp1_R25_pept,0,1)
-colnames(exprs(ll))
+ll <- realData(Exp1_R25_pept,plusCdt = 2, plusRep = 3)
 pData(ll)
+# line 13 of condition A1 <- 100 to see if imputation accurated
+exprs(ll)[14,1] <- 50
+
 #genDatasetArgs <- list(nbCond=3, nRep=3, mismatch.nRep=TRUE, prop.MV = 0.4,  prop.MEC=0.3, prop.POV=0.7,size = 5000)
 mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=FALSE)
+start_time <- Sys.time()
 res.1 <- test_imputation(nTest=1,genDatasetArgs , mixDatasetArgs, realData = T, data = ll)
+end_time <- Sys.time()
+end_time - start_time
+
+start_time <- Sys.time()
 mixDatasetArgs <- list(do.interC=TRUE, do.intraC=TRUE, do.fullRandom=TRUE)
 res.2 <- test_imputation(nTest=1,genDatasetArgs , mixDatasetArgs, realData = T, data = ll)
+end_time <- Sys.time()
+end_time - start_time
 
 # testS
-summary(res.1)
+#summary(res.1)
 showDatasets(res.1,1,5:16)
-showDatasets(res.1,1,20:23)
+showDatasets(res.2,2,20:23)
+
 
 #save(res,file = "res_mi_test2.RData")
 
@@ -662,6 +673,8 @@ showDatasets(res.1,1,20:23)
 #            "wrapper.impute.fixedValue","wrapper.impute.KNN")
 method="wrapper.dapar.impute.mi"
 tour=1
+res <- res.1
+#res <- res.2
 data <- res[[paste0("tour",tour)]][[paste0("obj.ori.",method)]]
 (exprs(data))[!complete.cases(exprs(data)),]
 data <- res[[paste0("tour",tour)]][[paste0("obj.mix.",method)]]
